@@ -1,3 +1,15 @@
+Changes in version 0.44.0
+=========================
+
+Wrapper:
+  Remove gobjects from GC rather than from jaw_impl_finalize, fixes #33
+  Keep a ref on para->child_impl while sending signal
+  Do not add/remove references for children
+  Call g_object_unref from jaw thread
+  Simplify code
+  Document the global references
+  Also ship HACKING
+
 Changes in version 0.42.1
 =========================
 
