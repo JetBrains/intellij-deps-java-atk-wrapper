@@ -17,8 +17,7 @@ libatk_wrapper_la_SOURCES = AtkWrapper.c \
                             jawtable.c \
                             jawtablecell.c
 
-noinst_HEADERS = AtkWrapper.h \
-                 jawimpl.h \
+noinst_HEADERS = jawimpl.h \
                  jawobject.h \
                  jawhyperlink.h \
                  jawtoplevel.h \
@@ -27,7 +26,8 @@ noinst_HEADERS = AtkWrapper.h \
 libatk_wrapper_la_CFLAGS = $(JNI_INCLUDES)\
                            $(JAW_CFLAGS) \
                            $(AM_CFLAGS) \
-                           $(PLATFORM_CFLAGS)
+                           $(PLATFORM_CFLAGS) \
+                           -I$(builddir)
 
 libatk_wrapper_la_CPPFLAGS = $(JNI_INCLUDES)\
                              $(JAW_CFLAGS) \

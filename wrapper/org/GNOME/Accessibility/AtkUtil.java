@@ -25,68 +25,90 @@
  */
 
 package org.GNOME.Accessibility;
-import javax.swing.*;
-import java.util.concurrent.*;
+
+import javax.swing.SwingUtilities;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
-* AtkUtil:
-*   That class is used to wrap the callback on Java object
-*   to avoid the concurrency of AWT objects.
-* @autor Giuseppe Capaldo
-*/
-public class AtkUtil{
+ * Utility class for safely executing code on the event dispatching thread.
+ * Is used to wrap the callback on Java object to avoid the concurrency of AWT objects.
+ *
+ * @autor Giuseppe Capaldo
+ */
+public final class AtkUtil {
+    private static final Logger log = Logger.getLogger("org.GNOME.Accessibility.AtkUtil");
+
+    private AtkUtil() {
+    }
 
     /**
-    * invokeInSwing:
-    *   Invoked when we need to make an asynchronous callback on
-    *   a Java object and this callback has a return value.
-    *   this method doesn't launch any exception because in case
-    *   of problems it prints a warning and returns the default
-    *   value that is passed to it
-    *
-    * @param function A Callable object that return T value
-    * @param d A T object tha is returned if an exception occurs
-    * @return The return value of the original function or the
-    *       default value. Obviously if the value is a primitive type
-    *       this will automatically wrapped from java in the
-    *       corresponding object
-    */
-    public static <T> T invokeInSwing (Callable <T> function, T d){
+     * Executes a Callable on  event dispatching thread and returns its result.
+     * If called from the EDT, it executes the function directly.
+     * Otherwise, it schedules asynchronous execution on the EDT and waits for the result.
+     *
+     * @param function The Callable task to execute.
+     * @param d        A default value to return if an exception occurs.
+     * @param <T>      The return type of the Callable.
+     * @return The result of the Callable, or the default value in case of an exception.
+     */
+    public static <T> T invokeInSwingAndWait(Callable<T> function, T d) {
         if (SwingUtilities.isEventDispatchThread()) {
-          // We are already running in the EDT, we can call it directly
-          try {
-            return function.call();
-          } catch (Exception ex) {
-            ex.printStackTrace(); // we can do better than this
-            return d;
-          }
+            // We are already running in the EDT, we can call it directly
+            try {
+                return function.call();
+            } catch (Exception ex) {
+                if (log.isLoggable(Level.WARNING)) {
+                    log.log(Level.WARNING, "Error occurred while executing function. Returning default value.", ex);
+                }
+                return d;
+            }
         }
 
         RunnableFuture<T> wf = new FutureTask<>(function);
         SwingUtilities.invokeLater(wf);
         try {
             return wf.get();
-        } catch (InterruptedException|ExecutionException ex) {
-            ex.printStackTrace(); // we can do better than this
+        } catch (Exception ex) {
+            if (log.isLoggable(Level.WARNING)) {
+                log.log(Level.WARNING, "Swing task execution interrupted or failed, returning default value.", ex);
+            }
             return d;
         }
     }
 
     /**
-    * invokeInSwing:
-    *   Invoked when we need to make an asynchronous callback on
-    *   some Java object and this callback hasn't a return value.
-    *
-    * @param function A Runnable object that doesn't return some value
-    */
-    public static void invokeInSwing (Runnable function){
+     * Executes a Runnable on the event dispatching thread.
+     * If called from the EDT, it runs the function directly.
+     * Otherwise, it executed asynchronously on the AWT event dispatching thread.
+     *
+     * @param function The Runnable task to execute.
+     */
+    public static void invokeInSwing(Runnable function) {
         if (SwingUtilities.isEventDispatchThread()) {
-          // We are already running in the EDT, we can call it directly
-          function.run();
-          return;
+            // We are already running in the EDT, we can call it directly
+            try {
+                function.run();
+            } catch (Exception ex) {
+                if (log.isLoggable(Level.WARNING)) {
+                    log.log(Level.WARNING, "Error occurred while executing function.", ex);
+                }
+            }
+            return;
         }
 
-        SwingUtilities.invokeLater(function);
+        SwingUtilities.invokeLater(() -> {
+            try {
+                function.run();
+            } catch (Exception ex) {
+                if (log.isLoggable(Level.WARNING)) {
+                    log.log(Level.WARNING, "Error occurred while executing function asynchronously.", ex);
+                }
+            }
+        });
     }
 
 }

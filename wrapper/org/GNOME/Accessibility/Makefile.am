@@ -12,7 +12,7 @@ EXTRA_DIST=$(JAVA_SRC) AtkWrapper.java.in $(srcdir)/AtkProvider.java
 all-local: $(BUILD_CLASSES)
 
 %.class : %.java AtkWrapper.java
-	$(JAVAC) -cp $(top_builddir)/wrapper -sourcepath $(top_srcdir)/wrapper:$(top_builddir)/wrapper $(JAVACFLAGS) -d $(top_builddir)/wrapper $<
+	$(JAVAC) -cp $(top_builddir)/wrapper -sourcepath $(top_srcdir)/wrapper:$(top_builddir)/wrapper $(JAVACFLAGS) -h $(top_builddir)/jni/src -d $(top_builddir)/wrapper $<
 
 clean-local:
 	$(RM) *.class

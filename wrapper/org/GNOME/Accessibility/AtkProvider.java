@@ -23,16 +23,23 @@ package org.GNOME.Accessibility;
 import javax.accessibility.AccessibilityProvider;
 
 public final class AtkProvider extends AccessibilityProvider {
-    private final String name = "org.GNOME.Accessibility.AtkWrapper";
 
-    public AtkProvider() {}
+    private static final String name = "org.GNOME.Accessibility.AtkWrapper";
+
+    public AtkProvider() {
+    }
 
     public String getName() {
         return name;
     }
 
     public void activate() {
-        new AtkWrapper();
+        if (isEnabled()) {
+            new AtkWrapper();
+        }
     }
 
+    private boolean isEnabled() {
+        return !java.lang.Boolean.parseBoolean(System.getProperty("linux.jdk.accessibility.atkwrapper.block", "false"));
+    }
 }
