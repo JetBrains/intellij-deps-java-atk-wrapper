@@ -14,251 +14,608 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
-#include <atk/atk.h>
-#include <glib.h>
+#include "jawcache.h"
 #include "jawimpl.h"
 #include "jawutil.h"
+#include <atk/atk.h>
+#include <glib.h>
+
+/**
+ * (From Atk documentation)
+ *
+ * AtkAction:
+ *
+ * The ATK interface provided by UI components
+ * which the user can activate/interact with.
+ *
+ * #AtkAction should be implemented by instances of #AtkObject classes
+ * with which the user can interact directly, i.e. buttons,
+ * checkboxes, scrollbars, e.g. components which are not "passive"
+ * providers of UI information.
+ *
+ * Exceptions: when the user interaction is already covered by another
+ * appropriate interface such as #AtkEditableText (insert/delete text,
+ * etc.) or #AtkValue (set value) then these actions should not be
+ * exposed by #AtkAction as well.
+ *
+ * Though most UI interactions on components should be invocable via
+ * keyboard as well as mouse, there will generally be a close mapping
+ * between "mouse actions" that are possible on a component and the
+ * AtkActions.  Where mouse and keyboard actions are redundant in
+ * effect, #AtkAction should expose only one action rather than
+ * exposing redundant actions if possible.  By convention we have been
+ * using "mouse centric" terminology for #AtkAction names.
+ *
+ */
 
 static gboolean jaw_action_do_action(AtkAction *action, gint i);
 static gint jaw_action_get_n_actions(AtkAction *action);
-static const gchar* jaw_action_get_description(AtkAction *action, gint i);
-static const gchar* jaw_action_get_keybinding (AtkAction *action, gint i);
-static gboolean jaw_action_set_description (AtkAction *action, gint i, const gchar *description);
-static const gchar* jaw_action_get_localized_name(AtkAction *action, gint i);
+static const gchar *jaw_action_get_description(AtkAction *action, gint i);
+static gboolean jaw_action_set_description(AtkAction *action, gint i,
+                                           const gchar *description);
+static const gchar *jaw_action_get_localized_name(AtkAction *action, gint i);
+
+static jclass cachedActionAtkActionClass = NULL;
+static jmethodID cachedActionCreateAtkActionMethod = NULL;
+static jmethodID cachedActionDoActionMethod = NULL;
+static jmethodID cachedActionGetNActionsMethod = NULL;
+static jmethodID cachedActionGetDescriptionMethod = NULL;
+static jmethodID cachedActionSetDescriptionMethod = NULL;
+static jmethodID cachedActionGetLocalizedNameMethod = NULL;
+
+static GMutex cache_mutex;
+static gboolean cache_initialized = FALSE;
+
+/**
+ * jaw_action_init_jni_cache:
+ * @jniEnv: JNI environment
+ *
+ * Initializes and caches JNI class and method references for performance.
+ * This avoids repeated expensive JNI lookups on every method call.
+ *
+ * Returns: %TRUE if initialization succeeded, %FALSE otherwise
+ **/
+static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv);
 
 typedef struct _ActionData {
-  jobject atk_action;
-  gchar* localized_name;
-  jstring jstrLocalizedName;
-  gchar* action_description;
-  jstring jstrActionDescription;
-  gchar* action_keybinding;
-  jstring jstrActionKeybinding;
+    jobject atk_action;
+    const gchar *localized_name;
+    jstring jstrLocalizedName;
+    const gchar *action_description;
+    jstring jstrActionDescription;
 } ActionData;
 
-#define JAW_GET_ACTION(action, def_ret) \
-    JAW_GET_OBJ_IFACE(action, INTERFACE_ACTION, ActionData, atk_action, jniEnv, atk_action, def_ret)
+#define JAW_GET_ACTION(action, def_ret)                                        \
+    JAW_GET_OBJ_IFACE(action,                                                  \
+                      org_GNOME_Accessibility_AtkInterface_INTERFACE_ACTION,   \
+                      ActionData, atk_action, jniEnv, atk_action, def_ret)
 
-void
-jaw_action_interface_init (AtkActionIface *iface, gpointer data)
-{
-  JAW_DEBUG_ALL("%p, %p", iface, data);
-  iface->do_action = jaw_action_do_action;
-  iface->get_n_actions = jaw_action_get_n_actions;
-  // FIXME: missing java support for distinguishing name and description
-  iface->get_description = jaw_action_get_description;
-  iface->get_name = jaw_action_get_description;
-  iface->get_keybinding = jaw_action_get_keybinding;
-  iface->set_description = jaw_action_set_description;
-  iface->get_localized_name = jaw_action_get_localized_name;
-}
+/**
+ * AtkActionIface:
+ * @do_action:
+ * @get_n_actions:
+ * @get_description:
+ * @get_name:
+ * @get_keybinding:
+ * @set_description:
+ * @get_localized_name:
+ **/
+void jaw_action_interface_init(AtkActionIface *iface, gpointer data) {
+    JAW_DEBUG("%p, %p", iface, data);
 
-gpointer
-jaw_action_data_init (jobject ac)
-{
-  JAW_DEBUG_ALL("%p", ac);
-  ActionData *data = g_new0(ActionData, 1);
-
-  JNIEnv *jniEnv = jaw_util_get_jni_env();
-  jclass classAction = (*jniEnv)->FindClass(jniEnv,
-                                            "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetStaticMethodID(jniEnv,
-                                          classAction,
-                                          "createAtkAction",
-                                          "(Ljavax/accessibility/AccessibleContext;)Lorg/GNOME/Accessibility/AtkAction;");
-  jobject jatk_action = (*jniEnv)->CallStaticObjectMethod(jniEnv, classAction, jmid, ac);
-  data->atk_action = (*jniEnv)->NewGlobalRef(jniEnv, jatk_action);
-
-  return data;
-}
-
-void
-jaw_action_data_finalize (gpointer p)
-{
-  JAW_DEBUG_ALL("%p", p);
-  ActionData *data = (ActionData*)p;
-  JNIEnv *jniEnv = jaw_util_get_jni_env();
-
-  if (data && data->atk_action) {
-    if (data->localized_name != NULL) {
-      (*jniEnv)->ReleaseStringUTFChars(jniEnv, data->jstrLocalizedName, data->localized_name);
-      (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrLocalizedName);
-      data->jstrLocalizedName = NULL;
-      data->localized_name = NULL;
+    if (iface == NULL) {
+        g_warning("%s: Null argument iface passed to the function", G_STRFUNC);
+        return;
     }
 
-    if (data->action_description != NULL) {
-      (*jniEnv)->ReleaseStringUTFChars(jniEnv,
-                                       data->jstrActionDescription,
-                                       data->action_description);
-      (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionDescription);
-      data->jstrActionDescription = NULL;
-      data->action_description = NULL;
+    iface->do_action = jaw_action_do_action;
+    iface->get_n_actions = jaw_action_get_n_actions;
+    iface->get_description = jaw_action_get_description;
+    iface->get_name = jaw_action_get_description;
+    iface->get_keybinding =
+        NULL; // missing java support: There is no dependency between
+              // javax.accessibility.AccessibleAction and keybindings,
+              //  so there is no way to return the correct keybinding based on
+              //  AccessibleContext.
+    iface->set_description = jaw_action_set_description;
+    iface->get_localized_name = jaw_action_get_localized_name;
+}
+
+/**
+ * jaw_action_data_init:
+ * @ac: a Java AccessibleContext object
+ *
+ * Initializes action interface data for an AccessibleContext.
+ *
+ * Creates a Java AtkAction wrapper and stores it in an ActionData structure.
+ *
+ * Explicitly manages a JNI local reference frame using
+ * PushLocalFrame/PopLocalFrame; all local references are released
+ * before the function returns.
+ *
+ * Returns: (transfer full): ActionData pointer, or %NULL on error
+ */
+gpointer jaw_action_data_init(jobject ac) {
+    JAW_DEBUG("%p", ac);
+
+    if (ac == NULL) {
+        g_warning("%s: Null argument ac passed to the function", G_STRFUNC);
+        return NULL;
     }
 
-    if (data->action_keybinding != NULL) {
-      (*jniEnv)->ReleaseStringUTFChars(jniEnv,
-                                       data->jstrActionKeybinding,
-                                       data->action_keybinding);
-      (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionKeybinding);
-      data->jstrActionKeybinding = NULL;
-      data->action_keybinding = NULL;
+    JNIEnv *jniEnv = jaw_util_get_jni_env();
+    if (jniEnv == NULL) {
+        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        return NULL;
     }
 
-    (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_action);
-    data->atk_action = NULL;
-  }
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return NULL;
+    }
+
+    if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
+        g_warning("%s: Failed to create a new local reference frame",
+                  G_STRFUNC);
+        return NULL;
+    }
+
+    jobject jatk_action = (*jniEnv)->CallStaticObjectMethod(
+        jniEnv, cachedActionAtkActionClass, cachedActionCreateAtkActionMethod,
+        ac);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_action == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_warning("%s: Failed to create AtkAction Java object via "
+                  "create_atk_action()",
+                  G_STRFUNC);
+        (*jniEnv)->PopLocalFrame(jniEnv, NULL);
+        return NULL;
+    }
+
+    ActionData *data = g_new0(ActionData, 1);
+    data->atk_action = (*jniEnv)->NewGlobalRef(jniEnv, jatk_action);
+    if (data->atk_action == NULL) {
+        g_warning("%s: Failed to create global ref for atk_action", G_STRFUNC);
+        g_free(data);
+        (*jniEnv)->PopLocalFrame(jniEnv, NULL);
+        return NULL;
+    }
+
+    (*jniEnv)->PopLocalFrame(jniEnv, NULL);
+
+    return data;
 }
 
-static gboolean
-jaw_action_do_action (AtkAction *action, gint i)
-{
-  JAW_DEBUG_C("%p, %d", action, i);
-  JAW_GET_ACTION(action, FALSE);
+/**
+ * jaw_action_data_finalize:
+ * @p: ActionData pointer to finalize
+ *
+ * Cleans up ActionData when the parent GObject is finalized.
+ * Called from jaw_impl_finalize() when the object's reference count reaches
+ * zero.
+ */
+void jaw_action_data_finalize(gpointer p) {
+    JAW_DEBUG("%p", p);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv,
-                                               "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                          classAtkAction,
-                                          "do_action",
-                                          "(I)Z");
-  jboolean jresult = (*jniEnv)->CallBooleanMethod(jniEnv,
-                                                  atk_action,
-                                                  jmid,
-                                                  (jint)i);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
-  return jresult;
+    if (p == NULL) {
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
+        return;
+    }
+
+    ActionData *data = (ActionData *)p;
+    if (data == NULL) {
+        g_warning("%s: data is null after cast", G_STRFUNC);
+        return;
+    }
+
+    JNIEnv *jniEnv = jaw_util_get_jni_env();
+
+    if (jniEnv == NULL) {
+        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+    } else {
+        if (data->jstrLocalizedName != NULL) {
+            if (data->localized_name != NULL) {
+                (*jniEnv)->ReleaseStringUTFChars(
+                    jniEnv, data->jstrLocalizedName, data->localized_name);
+                data->localized_name = NULL;
+            }
+            (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrLocalizedName);
+            data->jstrLocalizedName = NULL;
+        }
+
+        if (data->jstrActionDescription != NULL) {
+            if (data->action_description != NULL) {
+                (*jniEnv)->ReleaseStringUTFChars(jniEnv,
+                                                 data->jstrActionDescription,
+                                                 data->action_description);
+                data->action_description = NULL;
+            }
+            (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionDescription);
+            data->jstrActionDescription = NULL;
+        }
+
+        if (data->atk_action != NULL) {
+            (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_action);
+            data->atk_action = NULL;
+        }
+    }
+
+    g_free(data);
 }
 
-static gint
-jaw_action_get_n_actions (AtkAction *action)
-{
-  JAW_DEBUG_C("%p", action);
-  JAW_GET_ACTION(action, 0);
+/**
+ * jaw_action_do_action:
+ * @action: a #GObject instance that implements AtkActionIface
+ * @i: the action index corresponding to the action to be performed
+ *
+ * Perform the specified action on the object.
+ *
+ * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed
+ *
+ * Returns: %TRUE if success, %FALSE otherwise
+ **/
+static gboolean jaw_action_do_action(AtkAction *action, gint i) {
+    JAW_DEBUG("%p, %d", action, i);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv,
-                                               "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                          classAtkAction,
-                                          "get_n_actions", "()I");
+    if (action == NULL) {
+        g_warning("%s: Null action passed (index=%d)", G_STRFUNC, i);
+        return FALSE;
+    }
 
-  gint ret = (gint)(*jniEnv)->CallIntMethod(jniEnv, atk_action, jmid);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
-  return ret;
+    JAW_GET_ACTION(action,
+                   FALSE); // create local JNI reference `jobject atk_action`
+
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return FALSE;
+    }
+
+    jboolean jresult = (*jniEnv)->CallBooleanMethod(
+        jniEnv, atk_action, cachedActionDoActionMethod, (jint)i);
+    if ((*jniEnv)->ExceptionCheck(jniEnv)) {
+        jaw_jni_clear_exception(jniEnv);
+        return FALSE;
+    }
+
+    return jresult;
 }
 
-static const gchar*
-jaw_action_get_description (AtkAction *action, gint i)
-{
-  JAW_DEBUG_C("%p, %d", action, i);
-  JAW_GET_ACTION(action, NULL);
+/**
+ * jaw_action_get_n_actions:
+ * @action: a #GObject instance that implements AtkActionIface
+ *
+ * Gets the number of accessible actions available on the object.
+ * If there are more than one, the first one is considered the
+ * "default" action of the object.
+ *
+ * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed
+ *
+ * Returns: the number of actions, or 0 if @action does not
+ * implement this interface.
+ **/
+static gint jaw_action_get_n_actions(AtkAction *action) {
+    JAW_DEBUG("%p", action);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv,
-                                               "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                          classAtkAction,
-                                          "get_description",
-                                          "(I)Ljava/lang/String;");
-  jstring jstr = (*jniEnv)->CallObjectMethod(jniEnv,
-                                             atk_action,
-                                             jmid,
-                                             (jint)i);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
+    if (action == NULL) {
+        g_warning("%s: Null action passed to the function", G_STRFUNC);
+        return 0;
+    }
 
-  if (data->action_description != NULL)
-  {
-    (*jniEnv)->ReleaseStringUTFChars(jniEnv,
-                                     data->jstrActionDescription,
-                                     data->action_description);
-    (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionDescription);
-    data->jstrActionDescription = NULL;
-    data->action_description = NULL;
-  }
+    JAW_GET_ACTION(action,
+                   0); // create local JNI reference `jobject atk_action`
 
-  if (jstr) {
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return 0;
+    }
+
+    gint ret = (gint)(*jniEnv)->CallIntMethod(jniEnv, atk_action,
+                                              cachedActionGetNActionsMethod);
+    if ((*jniEnv)->ExceptionCheck(jniEnv)) {
+        jaw_jni_clear_exception(jniEnv);
+        return 0;
+    }
+
+    return ret;
+}
+
+/**
+ * jaw_action_get_description:
+ * @action: a #GObject instance that implements AtkActionIface
+ * @i: the action index corresponding to the action to be performed
+ *
+ * Returns a description of the specified action of the object.
+ *
+ * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed.
+ *
+ * Returns: (nullable): a description string for action @i, or %NULL if
+ * @action does not implement this interface or if an error occurs.
+ **/
+static const gchar *jaw_action_get_description(AtkAction *action, gint i) {
+    JAW_DEBUG("%p, %d", action, i);
+
+    if (action == NULL) {
+        g_warning("%s: Null action passed to the function", G_STRFUNC);
+        return NULL;
+    }
+
+    JAW_GET_ACTION(action,
+                   NULL); // create local JNI reference `jobject atk_action`
+
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return NULL;
+    }
+
+    jstring jstr = (*jniEnv)->CallObjectMethod(
+        jniEnv, atk_action, cachedActionGetDescriptionMethod, (jint)i);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_debug("%s: No description available for action (index=%d, action=%p)",
+                G_STRFUNC, i, action);
+        return NULL;
+    }
+
+    if (data->jstrActionDescription != NULL) {
+        if (data->action_description != NULL) {
+            (*jniEnv)->ReleaseStringUTFChars(
+                jniEnv, data->jstrActionDescription, data->action_description);
+            data->action_description = NULL;
+        }
+        (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionDescription);
+        data->jstrActionDescription = NULL;
+    }
+
     data->jstrActionDescription = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
-    data->action_description = (gchar*)(*jniEnv)->GetStringUTFChars(jniEnv,
-                                                                    data->jstrActionDescription,
-                                                                    NULL);
-  }
+    if (data->jstrActionDescription == NULL) {
+        return NULL;
+    }
 
-  return data->action_description;
+    data->action_description =
+        (*jniEnv)->GetStringUTFChars(jniEnv, data->jstrActionDescription, NULL);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || data->action_description == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+
+        // data->jstrActionDescription != NULL
+        (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionDescription);
+        data->jstrActionDescription = NULL;
+
+        return NULL;
+    }
+
+    return data->action_description;
 }
 
-static gboolean
-jaw_action_set_description (AtkAction *action, gint i, const gchar *description)
-{
-  JAW_DEBUG_C("%p, %d, %s", action, i, description);
-  JAW_GET_ACTION(action, FALSE);
+/**
+ * jaw_action_set_description:
+ * @action: a #GObject instance that implements AtkActionIface
+ * @i: the action index corresponding to the action to be performed
+ * @description: the description to be assigned to this action
+ *
+ * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed.
+ *
+ * Returns: %TRUE if the description was successfully set, %FALSE otherwise.
+ **/
+static gboolean jaw_action_set_description(AtkAction *action, gint i,
+                                           const gchar *description) {
+    JAW_DEBUG("%p, %d, %s", action, i, description);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv,
-                                               "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                          classAtkAction,
-                                          "setDescription",
-                                          "(ILjava/lang/String;)Z");
-  jboolean jisset = (*jniEnv)->CallBooleanMethod(jniEnv,
-                                                 atk_action,
-                                                 jmid,
-                                                 (jint)i,
-                                                 (jstring)description);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
-  return jisset;
+    if (action == NULL) {
+        g_warning("%s: Null action passed (index=%d)", G_STRFUNC, i);
+        return FALSE;
+    }
+    if (description == NULL) {
+        g_warning("%s:  Null description passed (index=%d)", G_STRFUNC, i);
+        return FALSE;
+    }
+
+    JAW_GET_ACTION(action,
+                   FALSE); // create local JNI reference `jobject atk_action`
+
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return FALSE;
+    }
+
+    jstring jdescription = (*jniEnv)->NewStringUTF(jniEnv, description);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || jdescription == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_warning("%s: Failed to create Java string for description",
+                  G_STRFUNC);
+        return FALSE;
+    }
+
+    jboolean jisset = (*jniEnv)->CallBooleanMethod(
+        jniEnv, atk_action, cachedActionSetDescriptionMethod, (jint)i,
+        (jstring)jdescription);
+    if ((*jniEnv)->ExceptionCheck(jniEnv)) {
+        jaw_jni_clear_exception(jniEnv);
+        return FALSE;
+    }
+
+    return jisset;
 }
 
-static const gchar*
-jaw_action_get_localized_name (AtkAction *action, gint i)
-{
-  JAW_DEBUG_C("%p, %d", action, i);
-  JAW_GET_ACTION(action, NULL);
+/**
+ * jaw_action_get_localized_name:
+ * @action: a #GObject instance that implements AtkActionIface
+ * @i: the action index corresponding to the action to be performed
+ *
+ * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed.
+ *
+ * Returns: (nullable): a localized name string for action @i, or %NULL
+ *   if @action does not implement this interface or if an error occurs.
+ **/
+static const gchar *jaw_action_get_localized_name(AtkAction *action, gint i) {
+    JAW_DEBUG("%p, %d", action, i);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                       classAtkAction,
-                                       "getLocalizedName",
-                                       "(I)Ljava/lang/String;");
-  jstring jstr = (*jniEnv)->CallObjectMethod(jniEnv, atk_action, jmid, (jint)i);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
-  if (data->localized_name != NULL)
-  {
-    (*jniEnv)->ReleaseStringUTFChars(jniEnv, data->jstrLocalizedName, data->localized_name);
-    (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrLocalizedName);
-  }
-  data->jstrLocalizedName = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
-  data->localized_name = (gchar*)(*jniEnv)->GetStringUTFChars(jniEnv, data->jstrLocalizedName, NULL);
-  return data->localized_name;
+    if (action == NULL) {
+        g_warning("%s: Null argument action passed to the function", G_STRFUNC);
+        return NULL;
+    }
+
+    JAW_GET_ACTION(action,
+                   NULL); // create local JNI reference `jobject atk_action`
+
+    if (!jaw_action_init_jni_cache(jniEnv)) {
+        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        return NULL;
+    }
+
+    jstring jstr = (*jniEnv)->CallObjectMethod(
+        jniEnv, atk_action, cachedActionGetLocalizedNameMethod, (jint)i);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_debug(
+            "%s: No localized name available for action (index=%d, action=%p)",
+            G_STRFUNC, i, action);
+        return NULL;
+    }
+
+    if (data->jstrLocalizedName != NULL) {
+        if (data->localized_name != NULL) {
+            (*jniEnv)->ReleaseStringUTFChars(jniEnv, data->jstrLocalizedName,
+                                             data->localized_name);
+            data->localized_name = NULL;
+        }
+        (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrLocalizedName);
+        data->jstrLocalizedName = NULL;
+    }
+    data->jstrLocalizedName = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
+    if (data->jstrLocalizedName == NULL) {
+        return NULL;
+    }
+    data->localized_name =
+        (*jniEnv)->GetStringUTFChars(jniEnv, data->jstrLocalizedName, NULL);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || data->localized_name == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+
+        // data->jstrLocalizedName != NULL
+        (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrLocalizedName);
+        data->jstrLocalizedName = NULL;
+
+        return NULL;
+    }
+
+    return data->localized_name;
 }
 
-static const gchar*
-jaw_action_get_keybinding (AtkAction *action, gint i)
-{
-  JAW_DEBUG_C("%p, %d", action, i);
-  JAW_GET_ACTION(action, NULL);
+static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv) {
+    JAW_DEBUG("JNIEnv: %p", jniEnv);
 
-  jclass classAtkAction = (*jniEnv)->FindClass(jniEnv,
-                                               "org/GNOME/Accessibility/AtkAction");
-  jmethodID jmid = (*jniEnv)->GetMethodID(jniEnv,
-                                          classAtkAction,
-                                          "get_keybinding",
-                                          "(I)Ljava/lang/String;");
-  jstring jstr = (*jniEnv)->CallObjectMethod(jniEnv, atk_action, jmid, (jint)i);
-  (*jniEnv)->DeleteGlobalRef(jniEnv, atk_action);
+    if (jniEnv == NULL) {
+        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        return FALSE;
+    }
 
-  if (data->action_keybinding != NULL)
-  {
-    (*jniEnv)->ReleaseStringUTFChars(jniEnv,
-                                     data->jstrActionKeybinding,
-                                     data->action_keybinding);
+    g_mutex_lock(&cache_mutex);
 
-    (*jniEnv)->DeleteGlobalRef(jniEnv, data->jstrActionKeybinding);
-  }
+    if (cache_initialized) {
+        g_mutex_unlock(&cache_mutex);
+        return TRUE;
+    }
 
-  data->jstrActionKeybinding = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
-  data->action_keybinding = (gchar*)(*jniEnv)->GetStringUTFChars(jniEnv,
-                                                                 data->jstrActionKeybinding,
-                                                                 NULL);
-  return data->action_keybinding;
+    jclass localClass =
+        (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkAction");
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_warning("%s: Failed to find AtkAction class", G_STRFUNC);
+        goto cleanup_and_fail;
+    }
+
+    cachedActionAtkActionClass = (*jniEnv)->NewGlobalRef(jniEnv, localClass);
+    (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
+
+    if (cachedActionAtkActionClass == NULL) {
+        g_warning("%s: Failed to create global reference for AtkAction class",
+                  G_STRFUNC);
+        goto cleanup_and_fail;
+    }
+
+    cachedActionCreateAtkActionMethod = (*jniEnv)->GetStaticMethodID(
+        jniEnv, cachedActionAtkActionClass, "create_atk_action",
+        "(Ljavax/accessibility/AccessibleContext;)Lorg/GNOME/Accessibility/"
+        "AtkAction;");
+
+    cachedActionDoActionMethod = (*jniEnv)->GetMethodID(
+        jniEnv, cachedActionAtkActionClass, "do_action", "(I)Z");
+
+    cachedActionGetNActionsMethod = (*jniEnv)->GetMethodID(
+        jniEnv, cachedActionAtkActionClass, "get_n_actions", "()I");
+
+    cachedActionGetDescriptionMethod =
+        (*jniEnv)->GetMethodID(jniEnv, cachedActionAtkActionClass,
+                               "get_description", "(I)Ljava/lang/String;");
+
+    cachedActionSetDescriptionMethod =
+        (*jniEnv)->GetMethodID(jniEnv, cachedActionAtkActionClass,
+                               "set_description", "(ILjava/lang/String;)Z");
+
+    cachedActionGetLocalizedNameMethod =
+        (*jniEnv)->GetMethodID(jniEnv, cachedActionAtkActionClass,
+                               "get_localized_name", "(I)Ljava/lang/String;");
+
+    if ((*jniEnv)->ExceptionCheck(jniEnv) ||
+        cachedActionCreateAtkActionMethod == NULL ||
+        cachedActionDoActionMethod == NULL ||
+        cachedActionGetNActionsMethod == NULL ||
+        cachedActionGetDescriptionMethod == NULL ||
+        cachedActionSetDescriptionMethod == NULL ||
+        cachedActionGetLocalizedNameMethod == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+
+        g_warning("%s: Failed to cache one or more AtkAction method IDs",
+                  G_STRFUNC);
+        goto cleanup_and_fail;
+    }
+
+    cache_initialized = TRUE;
+    g_mutex_unlock(&cache_mutex);
+
+    g_debug("%s: classes and methods cached successfully", G_STRFUNC);
+
+    return TRUE;
+
+cleanup_and_fail:
+    if (cachedActionAtkActionClass != NULL) {
+        (*jniEnv)->DeleteGlobalRef(jniEnv, cachedActionAtkActionClass);
+        cachedActionAtkActionClass = NULL;
+    }
+    cachedActionCreateAtkActionMethod = NULL;
+    cachedActionDoActionMethod = NULL;
+    cachedActionGetNActionsMethod = NULL;
+    cachedActionGetDescriptionMethod = NULL;
+    cachedActionSetDescriptionMethod = NULL;
+    cachedActionGetLocalizedNameMethod = NULL;
+
+    g_mutex_unlock(&cache_mutex);
+    return FALSE;
+}
+
+void jaw_action_cache_cleanup(JNIEnv *jniEnv) {
+    JAW_DEBUG("JNIEnv: %p", jniEnv);
+
+    if (jniEnv == NULL) {
+        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        return;
+    }
+
+    g_mutex_lock(&cache_mutex);
+
+    if (cachedActionAtkActionClass != NULL) {
+        (*jniEnv)->DeleteGlobalRef(jniEnv, cachedActionAtkActionClass);
+        cachedActionAtkActionClass = NULL;
+    }
+    cachedActionCreateAtkActionMethod = NULL;
+    cachedActionDoActionMethod = NULL;
+    cachedActionGetNActionsMethod = NULL;
+    cachedActionGetDescriptionMethod = NULL;
+    cachedActionSetDescriptionMethod = NULL;
+    cachedActionGetLocalizedNameMethod = NULL;
+    cache_initialized = FALSE;
+
+    g_mutex_unlock(&cache_mutex);
 }

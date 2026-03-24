@@ -20,230 +20,395 @@
 
 package org.GNOME.Accessibility;
 
-import javax.accessibility.*;
+import javax.accessibility.Accessible;
+import javax.accessibility.AccessibleComponent;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
+import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.lang.ref.WeakReference;
 
+/**
+ * The ATK Component interface implementation for Java accessibility.
+ * <p>
+ * This class provides a bridge between Java's AccessibleComponent interface
+ * and the ATK (Accessibility Toolkit) component interface.
+ */
 public class AtkComponent {
 
-  WeakReference<AccessibleContext> _ac;
-  WeakReference<AccessibleComponent> _acc_component;
+    private final WeakReference<AccessibleContext> accessibleContextWeakRef;
+    private final WeakReference<AccessibleComponent> accessibleComponentWeakRef;
 
-  public AtkComponent (AccessibleContext ac) {
-    super();
-    this._ac = new WeakReference<AccessibleContext>(ac);
-    this._acc_component = new WeakReference<AccessibleComponent>(ac.getAccessibleComponent());
-  }
+    private AtkComponent(AccessibleContext ac) {
+        assert EventQueue.isDispatchThread();
 
-  public static AtkComponent createAtkComponent(AccessibleContext ac){
-      return AtkUtil.invokeInSwing ( () -> { return new AtkComponent(ac); }, null);
-  }
+        if (ac == null) {
+            throw new IllegalArgumentException("AccessibleContext must be not null");
+        }
 
-  static public Point getWindowLocation(AccessibleContext ac) {
-      while (ac != null) {
-          AccessibleRole role = ac.getAccessibleRole();
-          if (role == AccessibleRole.DIALOG ||
-              role == AccessibleRole.FRAME ||
-              role == AccessibleRole.WINDOW) {
-              AccessibleComponent acc_comp = ac.getAccessibleComponent();
-              if (acc_comp == null)
-                  return null;
-              return acc_comp.getLocationOnScreen();
-          }
-          Accessible parent = ac.getAccessibleParent();
-          if (parent == null)
-              return null;
-          ac = parent.getAccessibleContext();
-      }
-      return null;
-  }
+        AccessibleComponent accessibleComponent = ac.getAccessibleComponent();
+        if (accessibleComponent == null) {
+            throw new IllegalArgumentException("AccessibleContext must have AccessibleComponent");
+        }
 
-  // Return the position of the object relative to the coordinate type
-  public static Point getComponentOrigin(AccessibleContext ac, AccessibleComponent acc_component, int coord_type) {
-      if (coord_type == AtkCoordType.SCREEN)
-          return acc_component.getLocationOnScreen();
+        this.accessibleContextWeakRef = new WeakReference<AccessibleContext>(ac);
+        this.accessibleComponentWeakRef = new WeakReference<AccessibleComponent>(accessibleComponent);
+    }
 
-      if (coord_type == AtkCoordType.WINDOW)
-      {
-          Point win_p = getWindowLocation(ac);
-          if (win_p == null)
-              return null;
-          Point p = acc_component.getLocationOnScreen();
-          if (p == null)
-              return null;
-          p.translate(-win_p.x, -win_p.y);
-          return p;
-      }
+    private static Point getWindowLocation(AccessibleContext ac) {
+        assert EventQueue.isDispatchThread();
 
-      if (coord_type == AtkCoordType.PARENT)
-          return acc_component.getLocation();
+        while (ac != null) {
+            AccessibleRole accessibleRole = ac.getAccessibleRole();
+            if (accessibleRole == AccessibleRole.DIALOG ||
+                    accessibleRole == AccessibleRole.FRAME ||
+                    accessibleRole == AccessibleRole.WINDOW) {
+                AccessibleComponent accessibleComponent = ac.getAccessibleComponent();
+                if (accessibleComponent == null) {
+                    return null;
+                }
+                return accessibleComponent.getLocationOnScreen();
+            }
+            Accessible accessibleParent = ac.getAccessibleParent();
+            if (accessibleParent == null) {
+                return null;
+            }
+            ac = accessibleParent.getAccessibleContext();
+        }
+        return null;
+    }
 
-      return null;
-  }
+    /**
+     * Return the position of the object relative to the coordinate type
+     * 0 - Coordinates are relative to the screen.
+     * 1 - Coordinates are relative to the component's toplevel window.
+     * 2 - Coordinates are relative to the component's immediate parent.
+     *
+     * @param ac
+     * @param coordType
+     * @return
+     */
+    public static Point getLocationByCoordinateType(AccessibleContext ac, int coordType) {
+        assert EventQueue.isDispatchThread();
 
-  // Return the position of the parent relative to the coordinate type
-  public static Point getParentOrigin(AccessibleContext ac, AccessibleComponent acc_component, int coord_type) {
-      if (coord_type == AtkCoordType.PARENT)
-          return new Point(0, 0);
+        AccessibleComponent accessibleComponent = ac.getAccessibleComponent();
+        if (accessibleComponent == null) {
+            return null;
+        }
 
-      Accessible parent = ac.getAccessibleParent();
-      if (parent == null)
-          return null;
-      AccessibleContext parent_ac = parent.getAccessibleContext();
-      if (parent_ac == null)
-          return null;
-      AccessibleComponent parent_component = parent_ac.getAccessibleComponent();
-      if (parent_component == null)
-          return null;
+        if (coordType == AtkCoordType.SCREEN) {
+            // Returns the location of the object on the screen.
+            return accessibleComponent.getLocationOnScreen();
+        }
 
-      if (coord_type == AtkCoordType.SCREEN) {
-          return parent_component.getLocationOnScreen();
-      }
+        if (coordType == AtkCoordType.WINDOW) {
+            Point windowLocation = getWindowLocation(ac);
+            if (windowLocation == null) {
+                return null;
+            }
+            Point componentLocationOnScreen = accessibleComponent.getLocationOnScreen();
+            if (componentLocationOnScreen == null) {
+                return null;
+            }
+            componentLocationOnScreen.translate(-windowLocation.x, -windowLocation.y);
+            return componentLocationOnScreen;
+        }
 
-      if (coord_type == AtkCoordType.WINDOW) {
-          Point window_origin = getWindowLocation(ac);
-          if (window_origin == null)
-              return null;
-          Point parent_origin = parent_component.getLocationOnScreen();
-          if (parent_origin == null)
-              return null;
-          parent_origin.translate(-window_origin.x, -window_origin.y);
-          return parent_origin;
-      }
-      return null;
-  }
+        if (coordType == AtkCoordType.PARENT) {
+            // Gets the location of the object relative to the parent
+            // in the form of a point specifying the object's top-left
+            // corner in the screen's coordinate space.
+            return accessibleComponent.getLocation();
+        }
 
-  public boolean contains (int x, int y, int coord_type) {
-      AccessibleContext ac = _ac.get();
-      if (ac == null)
-          return false;
-      AccessibleComponent acc_component = _acc_component.get();
-      if (acc_component == null)
-          return false;
+        return null;
+    }
 
-      return AtkUtil.invokeInSwing ( () -> {
-          if(acc_component.isVisible()){
-              Point p = getComponentOrigin(ac, acc_component, coord_type);
-              if (p == null)
-                  return false;
+    /* JNI upcalls section */
 
-              return acc_component.contains(new Point(x - p.x, y - p.y));
-          }
-          return false;
-      }, false);
-  }
+    /**
+     * Factory method to create an AtkComponent instance from an AccessibleContext.
+     * Called from native code via JNI.
+     *
+     * @param ac the AccessibleContext to wrap
+     * @return a new AtkComponent instance, or null if creation fails
+     */
+    private static AtkComponent create_atk_component(AccessibleContext ac) {
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            return new AtkComponent(ac);
+        }, null);
+    }
 
-  public AccessibleContext get_accessible_at_point (int x, int y, int coord_type) {
-      AccessibleContext ac = _ac.get();
-      if (ac == null)
-          return null;
-      AccessibleComponent acc_component = _acc_component.get();
-      if (acc_component == null)
-          return null;
-
-      return AtkUtil.invokeInSwing ( () -> {
-          if(acc_component.isVisible()){
-              Point p = getComponentOrigin(ac, acc_component, coord_type);
-              if (p == null)
-                  return null;
-
-              Accessible accessible = acc_component.getAccessibleAt(new Point(x - p.x, y - p.y));
-              if (accessible == null)
-                  return null;
-              return accessible.getAccessibleContext();
-          }
-          return null;
-      }, null);
-  }
-
-    public boolean grab_focus () {
-        AccessibleComponent acc_component = _acc_component.get();
-        if (acc_component == null)
+    /**
+     * Checks whether the specified point is within the extent of the component.
+     * Called from native code via JNI.
+     *
+     * @param x         x coordinate
+     * @param y         y coordinate
+     * @param coordType specifies whether the coordinates are relative to the screen,
+     *                  the component's toplevel window, or the component's parent
+     * @return true if the specified point is within the extent of the component
+     */
+    private boolean contains(int x, int y, int coordType) {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
             return false;
+        }
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
+            return false;
+        }
 
-        return AtkUtil.invokeInSwing ( () -> {
-            if (!acc_component.isFocusTraversable())
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                Point componentLocation = getLocationByCoordinateType(accessibleContext, coordType);
+                if (componentLocation == null) {
+                    return false;
+                }
+
+                return accessibleComponent.contains(new Point(x - componentLocation.x, y - componentLocation.y));
+            }
+            return false;
+        }, false);
+    }
+
+    /**
+     * Gets a reference to the accessible child, if one exists, at the coordinate point
+     * specified by x and y.
+     * Called from native code via JNI.
+     *
+     * @param x         x coordinate
+     * @param y         y coordinate
+     * @param coordType specifies whether the coordinates are relative to the screen,
+     *                  the component's toplevel window, or the component's parent
+     * @return the AccessibleContext of the child at the specified point, or null if none exists
+     */
+    private AccessibleContext get_accessible_at_point(int x, int y, int coordType) {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
+            return null;
+        }
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
+            return null;
+        }
+
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                Point componentLocation = getLocationByCoordinateType(accessibleContext, coordType);
+                if (componentLocation == null) {
+                    return null;
+                }
+
+                Accessible accessibleAt = accessibleComponent.getAccessibleAt(new Point(x - componentLocation.x, y - componentLocation.y));
+                if (accessibleAt == null) {
+                    return null;
+                }
+                AccessibleContext accessibleContextAt = accessibleAt.getAccessibleContext();
+                if (accessibleContextAt != null) {
+                    AtkWrapperDisposer.getInstance().addRecord(accessibleContextAt);
+                }
+                return accessibleContextAt;
+            }
+            return null;
+        }, null);
+    }
+
+    /**
+     * Grabs focus for this component.
+     * Called from native code via JNI.
+     *
+     * @return true if successful, false otherwise
+     */
+    private boolean grab_focus() {
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
+            return false;
+        }
+
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (!accessibleComponent.isFocusTraversable()) {
                 return false;
-            acc_component.requestFocus();
+            }
+            accessibleComponent.requestFocus();
             return true;
         }, false);
     }
 
-    public boolean set_extents(int x, int y, int width, int height, int coord_type) {
-        AccessibleContext ac = _ac.get();
-        if (ac == null)
+    /**
+     * Sets the extents of the component.
+     * Called from native code via JNI.
+     *
+     * @param newXByCoordType x coordinate
+     * @param newYByCoordType y coordinate
+     * @param width           width to set for the component
+     * @param height          height to set for the component
+     * @param coordType       specifies whether the coordinates are relative to the screen,
+     *                        the component's toplevel window, or the component's parent
+     * @return true if the extents were set successfully, false otherwise
+     */
+    private boolean set_extents(int newXByCoordType, int newYByCoordType, int width, int height, int coordType) {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
             return false;
-        AccessibleComponent acc_component = _acc_component.get();
-        if (acc_component == null)
+        }
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
             return false;
+        }
 
-        return AtkUtil.invokeInSwing( () -> {
-            if(acc_component.isVisible()){
-                Point p = getParentOrigin(ac, acc_component, coord_type);
-                if (p == null)
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                Point locationByCoordType = getLocationByCoordinateType(accessibleContext, coordType);
+                if (locationByCoordType == null) {
                     return false;
+                }
 
-                acc_component.setBounds(new Rectangle(x - p.x, y - p.y, width, height));
+                Point locationByParent = accessibleComponent.getLocation();
+                if (locationByParent == null) {
+                    return false;
+                }
+
+                accessibleComponent.setBounds(new Rectangle(locationByParent.x + (newXByCoordType - locationByCoordType.x), locationByParent.y + (newYByCoordType - locationByCoordType.y), width, height));
                 return true;
             }
             return false;
         }, false);
     }
 
-    public Rectangle get_extents(int coord_type) {
-        AccessibleContext ac = _ac.get();
-        if (ac == null)
+    /**
+     * Gets the rectangle which gives the extent of the component.
+     * Called from native code via JNI.
+     *
+     * @param coordType specifies whether the coordinates are relative to the screen,
+     *                  the component's toplevel window, or the component's parent
+     * @return the Rectangle representing the component's extent, or null if it cannot be obtained
+     */
+    private Rectangle get_extents(int coordType) {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
             return null;
-        AccessibleComponent acc_component = _acc_component.get();
-        if (acc_component == null)
+        }
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
             return null;
+        }
 
-        return AtkUtil.invokeInSwing ( () -> {
-            if(acc_component.isVisible()){
-                Rectangle rect = acc_component.getBounds();
-                if (rect == null)
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                Dimension dimension = accessibleComponent.getSize();
+                if (dimension == null) {
                     return null;
-                Point p = getParentOrigin(ac, acc_component, coord_type);
-                if (p == null)
+                }
+                Point componentLocation = getLocationByCoordinateType(accessibleContext, coordType);
+                if (componentLocation == null) {
                     return null;
+                }
 
-                rect.x += p.x;
-                rect.y += p.y;
-                return rect;
+                return new Rectangle(componentLocation.x, componentLocation.y, dimension.width, dimension.height);
             }
             return null;
-        },null);
+        }, null);
     }
 
-    public int get_layer () {
-        AccessibleContext ac = _ac.get();
-        if (ac == null)
-            return AtkLayer.INVALID;
+    /**
+     * Sets the position of the component.
+     * Called from native code via JNI.
+     *
+     * @param newXByCoordType x coordinate
+     * @param newYByCoordType y coordinate
+     * @param coordType       specifies whether the coordinates are relative to the screen,
+     *                        the component's toplevel window, or the component's parent
+     * @return true if the extents were set successfully, false otherwise
+     */
+    private boolean set_position(int newXByCoordType, int newYByCoordType, int coordType) {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
+            return false;
+        }
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
+            return false;
+        }
 
-        return AtkUtil.invokeInSwing ( () -> {
-            AccessibleRole role = ac.getAccessibleRole();
-            if (role == AccessibleRole.MENU ||
-            role == AccessibleRole.MENU_ITEM ||
-            role == AccessibleRole.POPUP_MENU ) {
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                Point locationByCoordType = getLocationByCoordinateType(accessibleContext, coordType);
+                if (locationByCoordType == null) {
+                    return false;
+                }
+
+                Point locationByParent = accessibleComponent.getLocation();
+                if (locationByParent == null) {
+                    return false;
+                }
+
+                accessibleComponent.setLocation(new Point(locationByParent.x + (newXByCoordType - locationByCoordType.x), locationByParent.y + (newYByCoordType - locationByCoordType.y)));
+                return true;
+            }
+            return false;
+        }, false);
+    }
+
+    /**
+     * Sets the size of the component.
+     * Called from native code via JNI.
+     *
+     * @param width  width to set for the component
+     * @param height height to set for the component
+     * @return true if the size was set successfully, false otherwise
+     */
+    private boolean set_size(int width, int height) {
+        AccessibleComponent accessibleComponent = accessibleComponentWeakRef.get();
+        if (accessibleComponent == null) {
+            return false;
+        }
+
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            if (accessibleComponent.isVisible()) {
+                accessibleComponent.setSize(new Dimension(width, height));
+                return true;
+            }
+            return false;
+        }, false);
+    }
+
+    /**
+     * Gets the AtkLayer of the component based on AccessibleRole.
+     * Called from native code via JNI.
+     *
+     * @return an int representing the AtkLayer of the component, or AtkLayer.INVALID if an error occurs
+     */
+    private int get_layer() {
+        AccessibleContext accessibleContext = accessibleContextWeakRef.get();
+        if (accessibleContext == null) {
+            return AtkLayer.INVALID;
+        }
+
+        return AtkUtil.invokeInSwingAndWait(() -> {
+            AccessibleRole accessibleRole = accessibleContext.getAccessibleRole();
+            if (accessibleRole == AccessibleRole.MENU ||
+                    accessibleRole == AccessibleRole.MENU_ITEM ||
+                    accessibleRole == AccessibleRole.POPUP_MENU) {
                 return AtkLayer.POPUP;
             }
-            if (role == AccessibleRole.INTERNAL_FRAME) {
+            if (accessibleRole == AccessibleRole.INTERNAL_FRAME) {
                 return AtkLayer.MDI;
             }
-            if (role == AccessibleRole.GLASS_PANE) {
+            if (accessibleRole == AccessibleRole.GLASS_PANE) {
                 return AtkLayer.OVERLAY;
             }
-            if (role == AccessibleRole.CANVAS ||
-            role == AccessibleRole.ROOT_PANE ||
-            role == AccessibleRole.LAYERED_PANE ) {
+            if (accessibleRole == AccessibleRole.CANVAS ||
+                    accessibleRole == AccessibleRole.ROOT_PANE ||
+                    accessibleRole == AccessibleRole.LAYERED_PANE) {
                 return AtkLayer.CANVAS;
             }
-            if (role == AccessibleRole.WINDOW) {
+            if (accessibleRole == AccessibleRole.WINDOW) {
                 return AtkLayer.WINDOW;
             }
             return AtkLayer.WIDGET;
         }, AtkLayer.INVALID);
     }
-
 }

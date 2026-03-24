@@ -3,7 +3,7 @@ AC_INIT([java-atk-wrapper],[0.44.0],[https://gitlab.gnome.org/GNOME/java-atk-wra
 : ${CXXFLAGS=""}
 
 AC_CONFIG_AUX_DIR(config)
-AM_INIT_AUTOMAKE([1.11 -Wall check-news])
+AM_INIT_AUTOMAKE([1.11 -Wall foreign])
 
 AM_SILENT_RULES([yes])
 m4_pattern_allow([AM_PROG_AR])

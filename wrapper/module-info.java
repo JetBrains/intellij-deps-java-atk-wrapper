@@ -2,6 +2,7 @@ module atk.wrapper {
     exports org.GNOME.Accessibility;
     requires transitive java.desktop;
     requires java.management;
+    requires java.logging;
     provides javax.accessibility.AccessibilityProvider
         with org.GNOME.Accessibility.AtkProvider;
 }
