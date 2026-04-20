@@ -546,7 +546,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
     } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LABEL")) {
         result = ATK_ROLE_LABEL;
     } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LAYERED_PANE")) {
-        result = ATK_ROLE_LAYERED_PANE;
+        result = ATK_ROLE_UNKNOWN;
     } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LIST")) {
         result = ATK_ROLE_LIST;
     } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LIST_ITEM")) {
