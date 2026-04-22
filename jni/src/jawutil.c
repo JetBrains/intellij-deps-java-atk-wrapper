@@ -449,6 +449,34 @@ static gboolean jaw_util_is_java_acc_role(JNIEnv *jniEnv, jobject acc_role,
     }
 }
 
+static gboolean jaw_util_is_generic_role(JNIEnv *jniEnv, jobject role) {
+    return jaw_util_is_java_acc_role(jniEnv, role, "LABEL") ||
+           jaw_util_is_java_acc_role(jniEnv, role, "PANEL") ||
+           jaw_util_is_java_acc_role(jniEnv, role, "UNKNOWN");
+}
+
+static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
+                                      jobject jAccessibleContext,
+                                      jobject ac_role) {
+    if (ac_role == NULL || !jaw_util_is_generic_role(jniEnv, ac_role)) {
+        return FALSE;
+    }
+    jobject parent = (*jniEnv)->CallStaticObjectMethod(
+        jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleParentMethod,
+        jAccessibleContext);
+    if (parent == NULL) {
+        return FALSE;
+    }
+    jobject parent_role = (*jniEnv)->CallStaticObjectMethod(
+        jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
+        parent);
+    gboolean result = parent_role != NULL &&
+                      jaw_util_is_java_acc_role(jniEnv, parent_role, "LIST");
+    (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
+    (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+    return result;
+}
+
 /**
  * Explicitly manages a JNI local reference frame using
  * PushLocalFrame/PopLocalFrame; all local references are released
@@ -490,8 +518,16 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
     if (ac_role == NULL) {
         g_warning("%s: Failed to get accessible role from AccessibleContext",
                   G_STRFUNC);
-    } else if (!(*jniEnv)->IsInstanceOf(jniEnv, ac_role,
-                                        cachedUtilAccessibleRoleClass)) {
+    }
+
+    if (jaw_util_is_list_item(jniEnv, jAccessibleContext, ac_role)) {
+        (*jniEnv)->PopLocalFrame(jniEnv, NULL);
+        jaw_jni_clear_exception(jniEnv);
+        return ATK_ROLE_LIST_ITEM;
+    }
+
+    if (!(*jniEnv)->IsInstanceOf(jniEnv, ac_role,
+                                 cachedUtilAccessibleRoleClass)) {
         result = ATK_ROLE_INVALID;
     } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "ALERT")) {
         result = ATK_ROLE_ALERT;
