@@ -477,6 +477,53 @@ static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
     return result;
 }
 
+static gboolean jaw_util_is_tree_item(JNIEnv *jniEnv,
+                                      jobject jAccessibleContext) {
+    jobject current = jAccessibleContext;
+    while (current != NULL) {
+        jobject parent = (*jniEnv)->CallStaticObjectMethod(
+            jniEnv, cachedUtilAtkObjectClass,
+            cachedUtilGetAccessibleParentMethod, current);
+        if (parent == NULL) {
+            if (current != jAccessibleContext)
+                (*jniEnv)->DeleteLocalRef(jniEnv, current);
+            return FALSE;
+        }
+        jobject parent_role = (*jniEnv)->CallStaticObjectMethod(
+            jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
+            parent);
+        if (parent_role == NULL) {
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+            if (current != jAccessibleContext) {
+                (*jniEnv)->DeleteLocalRef(jniEnv, current);
+            }
+            return FALSE;
+        }
+        if (jaw_util_is_java_acc_role(jniEnv, parent_role, "TREE")) {
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+            if (current != jAccessibleContext) {
+                (*jniEnv)->DeleteLocalRef(jniEnv, current);
+            }
+            return TRUE;
+        }
+        if (!jaw_util_is_generic_role(jniEnv, parent_role)) {
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+            if (current != jAccessibleContext) {
+                (*jniEnv)->DeleteLocalRef(jniEnv, current);
+            }
+            return FALSE;
+        }
+        (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
+        if (current != jAccessibleContext) {
+            (*jniEnv)->DeleteLocalRef(jniEnv, current);
+        }
+        current = parent;
+    }
+    return FALSE;
+}
+
 /**
  * Explicitly manages a JNI local reference frame using
  * PushLocalFrame/PopLocalFrame; all local references are released
@@ -524,6 +571,12 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         jaw_jni_clear_exception(jniEnv);
         return ATK_ROLE_LIST_ITEM;
+    }
+
+    if (jaw_util_is_tree_item(jniEnv, jAccessibleContext)) {
+        (*jniEnv)->PopLocalFrame(jniEnv, NULL);
+        jaw_jni_clear_exception(jniEnv);
+        return ATK_ROLE_TREE_ITEM;
     }
 
     if (!(*jniEnv)->IsInstanceOf(jniEnv, ac_role,
