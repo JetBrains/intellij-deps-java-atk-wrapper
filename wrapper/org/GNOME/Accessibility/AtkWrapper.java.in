@@ -48,6 +48,35 @@ public class AtkWrapper {
     // Previously focused JRootPane's AccessibleContext
     private static AccessibleContext oldPaneContext = null;
 
+    private static void emitAccessibleSelectionActiveDescendant(AccessibleContext parentAccContext) {
+        if (parentAccContext == null) {
+            return;
+        }
+
+        AccessibleSelection accSelection = parentAccContext.getAccessibleSelection();
+        if (accSelection == null || accSelection.getAccessibleSelectionCount() <= 0) {
+            return;
+        }
+
+        AccessibleContext childAccContext = null;
+        Object child = accSelection.getAccessibleSelection(0);
+        if (child instanceof AccessibleContext accessibleContext) {
+            childAccContext = accessibleContext;
+        } else if (child instanceof Accessible accessible) {
+            childAccContext = accessible.getAccessibleContext();
+        }
+
+        if (childAccContext == null) {
+            return;
+        }
+
+        AtkWrapperDisposer.getInstance().addRecord(childAccContext);
+
+        Object[] args = new Object[1];
+        args[0] = childAccContext;
+        emitSignal(parentAccContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+    }
+
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
 
         public void propertyChange(PropertyChangeEvent e) {
@@ -720,6 +749,11 @@ public class AtkWrapper {
             if (eventSourceContext != null) {
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
                 focusNotify(eventSourceContext);
+            }
+
+            if (eventSourceContext != null && eventSourceContext.getAccessibleRole() == AccessibleRole.LIST) {
+                emitAccessibleSelectionActiveDescendant(eventSourceContext);
+                return;
             }
         } catch (Exception e) {
             if (log.isLoggable(Level.SEVERE)) {
