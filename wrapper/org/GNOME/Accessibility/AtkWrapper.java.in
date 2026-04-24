@@ -30,6 +30,9 @@ import java.nio.file.StandardCopyOption;
 import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
+import javax.swing.JTree;
+import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +50,96 @@ public class AtkWrapper {
     private static AccessibleContext savedSourceContext = null;
     // Previously focused JRootPane's AccessibleContext
     private static AccessibleContext oldPaneContext = null;
+
+    private static void emitJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
+        if (tree == null || treeAccContext == null) {
+            return;
+        }
+
+        AccessibleContext childAccContext = resolveJTreeActiveDescendant(tree, treeAccContext);
+        if (childAccContext == null) {
+            return;
+        }
+
+        AtkWrapperDisposer.getInstance().addRecord(childAccContext);
+
+        Object[] args = new Object[1];
+        args[0] = childAccContext;
+        emitSignal(treeAccContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+    }
+
+    private static AccessibleContext resolveJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
+        if (tree == null || treeAccContext == null) {
+            return null;
+        }
+
+        TreePath selectionPath = tree.getLeadSelectionPath();
+        if (selectionPath == null) {
+            selectionPath = tree.getSelectionPath();
+        }
+        if (selectionPath == null) {
+            return null;
+        }
+
+        AccessibleContext childContext = getAccessibleContextForJTreePath(tree, treeAccContext, selectionPath);
+        return childContext;
+    }
+
+    private static AccessibleContext getAccessibleContextForJTreePath(JTree tree, AccessibleContext treeAccContext, TreePath selectionPath) {
+        if (tree == null || treeAccContext == null || selectionPath == null) {
+            return null;
+        }
+
+        Object[] selectionNodes = selectionPath.getPath();
+        if (selectionNodes == null || selectionNodes.length == 0) {
+            return null;
+        }
+
+        TreeModel model = tree.getModel();
+        Object root = (model == null) ? null : model.getRoot();
+        if (root == null || selectionNodes[0] != root) {
+            return null;
+        }
+
+        Accessible current;
+        int startIndex;
+
+        if (tree.isRootVisible()) {
+            current = treeAccContext.getAccessibleChild(0);
+            startIndex = 1;
+        } else {
+            if (selectionNodes.length < 2) {
+                return null;
+            }
+
+            int firstIndex = model.getIndexOfChild(root, selectionNodes[1]);
+            if (firstIndex < 0) {
+                return null;
+            }
+
+            current = treeAccContext.getAccessibleChild(firstIndex);
+            startIndex = 2;
+        }
+
+        for (int i = startIndex; i < selectionNodes.length; i++) {
+            if (current == null) {
+                return null;
+            }
+            AccessibleContext currentContext = current.getAccessibleContext();
+            if (currentContext == null) {
+                return null;
+            }
+
+            int childIndex = model.getIndexOfChild(selectionNodes[i - 1], selectionNodes[i]);
+            if (childIndex < 0) {
+                return null;
+            }
+
+            current = currentContext.getAccessibleChild(childIndex);
+        }
+
+        return current == null ? null : current.getAccessibleContext();
+    }
 
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
 
@@ -281,6 +374,16 @@ public class AtkWrapper {
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_STATE_PROPERTY)) {
                 Accessible parent = ac.getAccessibleParent();
                 AccessibleRole role = ac.getAccessibleRole();
+
+                if (role == AccessibleRole.TREE && newValue == AccessibleState.FOCUSED) {
+                    String jtree = "javax.swing.JTree$AccessibleJTree";
+                    String className = o.getClass().getName();
+                    if (jtree.compareTo(className) == 0) {
+                        dispatchFocusEvent(o);
+                        return;
+                    }
+                }
+
                 if (role != null) {
                     if (newValue == AccessibleState.FOCUSED ||
                             newValue == AccessibleState.SELECTED) {
@@ -723,6 +826,11 @@ public class AtkWrapper {
             if (eventSourceContext != null) {
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
                 focusNotify(eventSourceContext);
+            }
+
+            if (eventSource instanceof JTree tree) {
+                emitJTreeActiveDescendant(tree, eventSourceContext);
+                return;
             }
         } catch (Exception e) {
             if (log.isLoggable(Level.SEVERE)) {
