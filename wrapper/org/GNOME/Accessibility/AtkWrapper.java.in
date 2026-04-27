@@ -31,7 +31,6 @@ import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
 import javax.swing.JTree;
-import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -90,55 +89,16 @@ public class AtkWrapper {
             return null;
         }
 
-        Object[] selectionNodes = selectionPath.getPath();
-        if (selectionNodes == null || selectionNodes.length == 0) {
-            return null;
+        Rectangle bounds = tree.getPathBounds(selectionPath);
+        AccessibleComponent treeComponent = treeAccContext.getAccessibleComponent();
+        if (bounds != null && treeComponent != null) {
+            Accessible node = treeComponent.getAccessibleAt(new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+            if (node != null) {
+                return node.getAccessibleContext();
+            }
         }
 
-        TreeModel model = tree.getModel();
-        Object root = (model == null) ? null : model.getRoot();
-        if (root == null || selectionNodes[0] != root) {
-            return null;
-        }
-
-        Accessible current;
-        int startIndex;
-
-        if (tree.isRootVisible()) {
-            current = treeAccContext.getAccessibleChild(0);
-            startIndex = 1;
-        } else {
-            if (selectionNodes.length < 2) {
-                return null;
-            }
-
-            int firstIndex = model.getIndexOfChild(root, selectionNodes[1]);
-            if (firstIndex < 0) {
-                return null;
-            }
-
-            current = treeAccContext.getAccessibleChild(firstIndex);
-            startIndex = 2;
-        }
-
-        for (int i = startIndex; i < selectionNodes.length; i++) {
-            if (current == null) {
-                return null;
-            }
-            AccessibleContext currentContext = current.getAccessibleContext();
-            if (currentContext == null) {
-                return null;
-            }
-
-            int childIndex = model.getIndexOfChild(selectionNodes[i - 1], selectionNodes[i]);
-            if (childIndex < 0) {
-                return null;
-            }
-
-            current = currentContext.getAccessibleChild(childIndex);
-        }
-
-        return current == null ? null : current.getAccessibleContext();
+        return null;
     }
 
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
