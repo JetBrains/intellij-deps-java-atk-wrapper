@@ -478,7 +478,12 @@ static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
 }
 
 static gboolean jaw_util_is_tree_item(JNIEnv *jniEnv,
-                                      jobject jAccessibleContext) {
+                                      jobject jAccessibleContext,
+                                      jobject ac_role) {
+    if (!jaw_util_is_generic_role(jniEnv, ac_role)) {
+        return FALSE;
+    }
+
     jobject current = jAccessibleContext;
     while (current != NULL) {
         jobject parent = (*jniEnv)->CallStaticObjectMethod(
@@ -573,7 +578,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
         return ATK_ROLE_LIST_ITEM;
     }
 
-    if (jaw_util_is_tree_item(jniEnv, jAccessibleContext)) {
+    if (jaw_util_is_tree_item(jniEnv, jAccessibleContext, ac_role)) {
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         jaw_jni_clear_exception(jniEnv);
         return ATK_ROLE_TREE_ITEM;
