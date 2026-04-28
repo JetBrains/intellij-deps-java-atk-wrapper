@@ -336,12 +336,8 @@ public class AtkWrapper {
                 AccessibleRole role = ac.getAccessibleRole();
 
                 if (role == AccessibleRole.TREE && newValue == AccessibleState.FOCUSED) {
-                    String jtree = "javax.swing.JTree$AccessibleJTree";
-                    String className = o.getClass().getName();
-                    if (jtree.compareTo(className) == 0) {
-                        dispatchFocusEvent(o);
-                        return;
-                    }
+                    dispatchFocusEvent(o);
+                    return;
                 }
 
                 if (role != null) {
