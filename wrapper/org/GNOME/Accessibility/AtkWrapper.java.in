@@ -749,13 +749,8 @@ public class AtkWrapper {
             if (oldSourceContext != null) {
                 AccessibleRole role = oldSourceContext.getAccessibleRole();
                 if (role == AccessibleRole.MENU || role == AccessibleRole.MENU_ITEM) {
-                    String jrootpane = "javax.swing.JRootPane$AccessibleJRootPane";
-                    String name = eventSourceContext.getClass().getName();
-
-                    if (jrootpane.compareTo(name) == 0) {
-                        oldPaneContext = eventSourceContext;
-                        return;
-                    }
+                    oldPaneContext = eventSourceContext;
+                    return;
                 }
                 savedSourceContext = eventSourceContext;
             } else if (oldPaneContext == eventSourceContext) {
