@@ -15,7 +15,6 @@ AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC(gcc)
 AC_PROG_CXX
 AC_PROG_INSTALL
-AC_PATH_XTRA
 
 # Initialize libtool
 LT_PREREQ([2.2.6])
@@ -23,16 +22,20 @@ LT_INIT([disable-static])
 
 AC_CONFIG_MACRO_DIR([m4])
 
-m4_define([req_ver_atk], [1.18.0])
+m4_define([req_ver_atk], [2.28.0])
+m4_define([req_ver_atk_bridge], [2.26.0])
+m4_define([req_ver_atspi], [2.28.0])
+m4_define([req_ver_glib], [2.56.0])
 
 PKG_CHECK_MODULES(JAW, [
-  atk >= 2.36.0
-  atk-bridge-2.0 >= 2.33.1
-  atspi-2 >= 2.14.0
+  atk >= req_ver_atk
+  atk-bridge-2.0 >= req_ver_atk_bridge
+  atspi-2 >= req_ver_atspi
   dbus-1
-  glib-2.0 >= 2.32.0
-  gthread-2.0
-  gobject-2.0
+  glib-2.0 >= req_ver_glib
+  gmodule-2.0 >= req_ver_glib
+  gthread-2.0 >= req_ver_glib
+  gobject-2.0 >= req_ver_glib
 ])
 
 LIB_ATK_WRAPPER_LD_FLAGS="-avoid-version -no-undefined"

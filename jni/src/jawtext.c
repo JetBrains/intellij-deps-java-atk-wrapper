@@ -171,8 +171,10 @@ void jaw_text_interface_init(AtkTextIface *iface, gpointer data) {
      *
      * Since ATK 2.32
      */
+#if ATK_CHECK_VERSION(2, 32, 0)
     iface->scroll_substring_to = NULL;       // missing java support
     iface->scroll_substring_to_point = NULL; // missing java support
+#endif
 }
 
 /**
