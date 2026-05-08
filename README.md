@@ -26,9 +26,20 @@ Additional documentation is available in the `docs/` directory:
 
 Build from source with autotools:
 
+On Oracle Linux 8, install the native build prerequisites first:
+
+```bash
+sudo dnf install dnf-plugins-core
+sudo dnf config-manager --enable ol8_codeready_builder
+sudo dnf install autoconf autoconf-archive automake libtool make gcc gcc-c++ \
+  java-devel pkgconf-pkg-config atk-devel at-spi2-atk-devel \
+  at-spi2-core-devel dbus-devel glib2-devel gobject-introspection-devel \
+  xorg-x11-utils
+```
+
 1. Prepare configure scripts:
-   - Git checkout: `./autogen.sh [--prefix=PATH] [JAVA_HOME=...] [JDK_HOME=...]`
-   - Source tarball: `./configure [--prefix=PATH] [JAVA_HOME=...] [JDK_HOME=...]`
+   - Git checkout: `./autogen.sh [--prefix=PATH] [JAVA_HOME=...] [JDK_SRC=...]`
+   - Source tarball: `./configure [--prefix=PATH] [JAVA_HOME=...] [JDK_SRC=...]`
 2. Build: `make`
 3. Install: `make install`
 

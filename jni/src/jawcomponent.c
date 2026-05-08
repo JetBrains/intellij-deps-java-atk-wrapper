@@ -137,9 +137,11 @@ void jaw_component_interface_init(AtkComponentIface *iface, gpointer data) {
     iface->ref_accessible_at_point = jaw_component_ref_accessible_at_point;
     iface->remove_focus_handler =
         NULL;                // deprecated: iface->remove_focus_handler
+#if ATK_CHECK_VERSION(2, 30, 0)
     iface->scroll_to = NULL; // missing java support for iface->scroll_to
     iface->scroll_to_point =
         NULL; // missing java support for iface->scroll_to_point
+#endif
     iface->set_extents = jaw_component_set_extents;
     iface->set_position = jaw_component_set_position;
     iface->set_size = jaw_component_set_size;

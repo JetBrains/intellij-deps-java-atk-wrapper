@@ -24,10 +24,9 @@
 #include "jawutil.h"
 #include "org_GNOME_Accessibility_AtkSignal.h"
 #include "org_GNOME_Accessibility_AtkWrapper.h"
-#include <X11/Xlib.h>
 #include <atk-bridge.h>
-#include <atspi/atspi-version.h>
 #include <glib.h>
+#include <gmodule.h>
 #include <jni.h>
 #include <stdatomic.h>
 #include <stdint.h>
@@ -55,12 +54,6 @@ extern "C" {
 #define JAW_LOG_FILE "jaw_log.txt"
 #define JAW_LOG_FILE2 "/tmp/" JAW_LOG_FILE
 
-#define ATSPI_CHECK_VERSION(major, minor, micro)                               \
-    (((ATSPI_MAJOR_VERSION) > (major)) ||                                      \
-     ((ATSPI_MAJOR_VERSION) == (major) && (ATSPI_MINOR_VERSION) > (minor)) ||  \
-     ((ATSPI_MAJOR_VERSION) == (major) && (ATSPI_MINOR_VERSION) == (minor) &&  \
-      (ATSPI_MICRO_VERSION) >= (micro)))
-
 #define G_MAIN_LOOP_LOCAL_FRAME_SIZE 16
 
 gboolean jaw_accessibility_init(void);
@@ -69,6 +62,24 @@ void jaw_accessibility_shutdown(void);
 static GMainLoop *jaw_main_loop;
 static GMainContext *jaw_main_context;
 static GThread *jaw_loop_thread = NULL;
+
+typedef void (*AtkBridgeSetEventContextFunc)(GMainContext *context);
+static AtkBridgeSetEventContextFunc jaw_atk_bridge_set_event_context = NULL;
+
+static AtkBridgeSetEventContextFunc
+lookup_atk_bridge_set_event_context(void) {
+    GModule *self;
+    gpointer sym = NULL;
+
+    self = g_module_open(NULL, 0);
+    if (self == NULL)
+        return NULL;
+
+    if (!g_module_symbol(self, "atk_bridge_set_event_context", &sym))
+        return NULL;
+
+    return (AtkBridgeSetEventContextFunc)sym;
+}
 
 /*
  * True -- main loop should continue running.
@@ -125,14 +136,15 @@ static void jaw_cleanup_common(JNIEnv *jniEnv) {
         g_debug("%s: Main loop unref'd", G_STRFUNC);
     }
 
-#if ATSPI_CHECK_VERSION(2, 33, 1)
     if (jaw_main_context != NULL) {
-        atk_bridge_set_event_context(NULL);
+        if (jaw_atk_bridge_set_event_context != NULL) {
+            jaw_atk_bridge_set_event_context(NULL);
+            jaw_atk_bridge_set_event_context = NULL;
+        }
         g_main_context_unref(jaw_main_context);
         jaw_main_context = NULL;
         g_debug("%s: Main context unref'd", G_STRFUNC);
     }
-#endif
 
     pthread_mutex_lock(&jaw_vdc_dup_mutex);
     jaw_vdc_clear_last_ac(jniEnv);
@@ -263,14 +275,15 @@ Java_org_GNOME_Accessibility_AtkWrapper_loadAtkBridge(JNIEnv *env,
         return JNI_FALSE;
     }
 
-#if ATSPI_CHECK_VERSION(2, 33, 1)
-    jaw_main_context = g_main_context_new();
-    jaw_main_loop =
-        g_main_loop_new(jaw_main_context, FALSE); /*main loop NOT running*/
-    atk_bridge_set_event_context(jaw_main_context);
-#else
-    jaw_main_loop = g_main_loop_new(NULL, FALSE);
-#endif
+    jaw_atk_bridge_set_event_context = lookup_atk_bridge_set_event_context();
+    if (jaw_atk_bridge_set_event_context != NULL) {
+        jaw_main_context = g_main_context_new();
+        jaw_main_loop =
+            g_main_loop_new(jaw_main_context, FALSE); /*main loop NOT running*/
+        jaw_atk_bridge_set_event_context(jaw_main_context);
+    } else {
+        jaw_main_loop = g_main_loop_new(NULL, FALSE);
+    }
 
     atomic_flag_test_and_set_explicit(&jaw_loop_running, memory_order_release);
 
