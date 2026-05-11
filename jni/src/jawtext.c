@@ -121,7 +121,7 @@ void jaw_text_interface_init(AtkTextIface *iface, gpointer data) {
     JAW_DEBUG("%p, %p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -195,23 +195,23 @@ gpointer jaw_text_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -220,7 +220,7 @@ gpointer jaw_text_data_init(jobject ac) {
         jniEnv, cachedTextAtkTextClass, cachedTextCreateAtkTextMethod, ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_text == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jatk_text using create_atk_text method",
+        g_debug("%s: Failed to create jatk_text using create_atk_text method",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
@@ -229,7 +229,7 @@ gpointer jaw_text_data_init(jobject ac) {
     TextData *data = g_new0(TextData, 1);
     data->atk_text = (*jniEnv)->NewGlobalRef(jniEnv, jatk_text);
     if (data->atk_text == NULL) {
-        g_warning("%s: Failed to create global ref for atk_text", G_STRFUNC);
+        g_debug("%s: Failed to create global ref for atk_text", G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
@@ -252,7 +252,7 @@ void jaw_text_data_finalize(gpointer p) {
     JAW_DEBUG("%p", p);
 
     if (p == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -264,7 +264,7 @@ void jaw_text_data_finalize(gpointer p) {
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+        g_debug("%s: JNIEnv is NULL in finalize", G_STRFUNC);
     } else {
         if (data->atk_text != NULL) {
             (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_text);
@@ -290,7 +290,7 @@ static gchar *private_jaw_text_get_gtext_from_string_seq(JNIEnv *jniEnv,
                                                          gint *end_offset) {
     if (jniEnv == NULL || jStrSeq == NULL || start_offset == NULL ||
         end_offset == NULL) {
-        g_warning("%s: Null argument. jniEnv=%p, jStrSeq=%p, start_offset=%p, "
+        g_debug("%s: Null argument. jniEnv=%p, jStrSeq=%p, start_offset=%p, "
                   "end_offset=%p",
                   G_STRFUNC, (void *)jniEnv, (void *)jStrSeq,
                   (void *)start_offset, (void *)end_offset);
@@ -298,7 +298,7 @@ static gchar *private_jaw_text_get_gtext_from_string_seq(JNIEnv *jniEnv,
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -307,7 +307,7 @@ static gchar *private_jaw_text_get_gtext_from_string_seq(JNIEnv *jniEnv,
         (*jniEnv)->GetObjectField(jniEnv, jStrSeq, cachedTextStrFieldID);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jStr == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to get jStr field", G_STRFUNC);
+        g_debug("%s: Failed to get jStr field", G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
     }
@@ -318,7 +318,7 @@ static gchar *private_jaw_text_get_gtext_from_string_seq(JNIEnv *jniEnv,
                                                cachedTextEndOffsetFieldID);
     if ((*jniEnv)->ExceptionCheck(jniEnv)) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to get offsets from StringSequence", G_STRFUNC);
+        g_debug("%s: Failed to get offsets from StringSequence", G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
     }
@@ -349,14 +349,14 @@ static gchar *jaw_text_get_text(AtkText *text, gint start_offset,
     JAW_DEBUG("%p, %d, %d", text, start_offset, end_offset);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_TEXT(text, NULL); // create local JNI reference `jobject atk_text`
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -365,7 +365,7 @@ static gchar *jaw_text_get_text(AtkText *text, gint start_offset,
                                     (jint)start_offset, (jint)end_offset);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jstr using get_text method", G_STRFUNC);
+        g_debug("%s: Failed to create jstr using get_text method", G_STRFUNC);
         return NULL;
     }
 
@@ -389,14 +389,14 @@ static gunichar jaw_text_get_character_at_offset(AtkText *text, gint offset) {
     JAW_DEBUG("%p, %d", text, offset);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return 0;
     }
 
     JAW_GET_TEXT(text, 0); // create local JNI reference `jobject atk_text`
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -407,7 +407,7 @@ static gunichar jaw_text_get_character_at_offset(AtkText *text, gint offset) {
         return 0;
     }
     if (jcodepoint == 0) {
-        g_warning("%s: jcodepoint is 0", G_STRFUNC);
+        g_debug("%s: jcodepoint is 0", G_STRFUNC);
         return 0;
     }
 
@@ -440,7 +440,7 @@ static gchar *jaw_text_get_text_at_offset(AtkText *text, gint offset,
               end_offset);
 
     if (text == NULL || start_offset == NULL || end_offset == NULL) {
-        g_warning("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
+        g_debug("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
                   G_STRFUNC, (void *)text, (void *)start_offset,
                   (void *)end_offset);
         return NULL;
@@ -449,7 +449,7 @@ static gchar *jaw_text_get_text_at_offset(AtkText *text, gint offset,
     JAW_GET_TEXT(text, NULL); // create local JNI reference `jobject atk_text`
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -458,7 +458,7 @@ static gchar *jaw_text_get_text_at_offset(AtkText *text, gint offset,
         (jint)boundary_type);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jStrSeq == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning(
+        g_debug(
             "%s: Failed to create jStrSeq using get_text_at_offset method",
             G_STRFUNC);
         return NULL;
@@ -528,7 +528,7 @@ static gchar *jaw_text_get_string_at_offset(AtkText *text, gint offset,
               end_offset);
 
     if (text == NULL || start_offset == NULL || end_offset == NULL) {
-        g_warning("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
+        g_debug("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
                   G_STRFUNC, (void *)text, (void *)start_offset,
                   (void *)end_offset);
         return NULL;
@@ -537,7 +537,7 @@ static gchar *jaw_text_get_string_at_offset(AtkText *text, gint offset,
     JAW_GET_TEXT(text, NULL); // create local JNI reference `jobject atk_text`
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -546,7 +546,7 @@ static gchar *jaw_text_get_string_at_offset(AtkText *text, gint offset,
         (jint)granularity);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jStrSeq == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning(
+        g_debug(
             "%s: Failed to create jStrSeq using get_string_at_offset method",
             G_STRFUNC);
         return NULL;
@@ -574,14 +574,14 @@ static gint jaw_text_get_caret_offset(AtkText *text) {
     JAW_DEBUG("%p", text);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return -1;
     }
 
     JAW_GET_TEXT(text, -1);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return -1;
     }
 
@@ -623,7 +623,7 @@ static void jaw_text_get_character_extents(AtkText *text, gint offset, gint *x,
               coords);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return;
     }
 
@@ -639,7 +639,7 @@ static void jaw_text_get_character_extents(AtkText *text, gint offset, gint *x,
     JAW_GET_TEXT(text, );
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -648,7 +648,7 @@ static void jaw_text_get_character_extents(AtkText *text, gint offset, gint *x,
         (jint)coords);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jrect == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning(
+        g_debug(
             "%s: Failed to create jrect using get_character_extents method",
             G_STRFUNC);
         return;
@@ -686,14 +686,14 @@ static gint jaw_text_get_character_count(AtkText *text) {
     JAW_DEBUG("%p", text);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return -1;
     }
 
     JAW_GET_TEXT(text, -1);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return -1;
     }
 
@@ -729,14 +729,14 @@ static gint jaw_text_get_offset_at_point(AtkText *text, gint x, gint y,
     JAW_DEBUG("%p, %d, %d, %d", text, x, y, coords);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return -1;
     }
 
     JAW_GET_TEXT(text, -1);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return -1;
     }
 
@@ -779,7 +779,7 @@ static void jaw_text_get_range_extents(AtkText *text, gint start_offset,
               rect);
 
     if (text == NULL || rect == NULL) {
-        g_warning("%s: Null argument. text=%p, rect=%p", G_STRFUNC,
+        g_debug("%s: Null argument. text=%p, rect=%p", G_STRFUNC,
                   (void *)text, (void *)rect);
         return;
     }
@@ -792,7 +792,7 @@ static void jaw_text_get_range_extents(AtkText *text, gint start_offset,
     JAW_GET_TEXT(text, );
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -801,7 +801,7 @@ static void jaw_text_get_range_extents(AtkText *text, gint start_offset,
         (jint)end_offset, (jint)coord_type);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jrect == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jrect using get_range_extents method",
+        g_debug("%s: Failed to create jrect using get_range_extents method",
                   G_STRFUNC);
         return;
     }
@@ -824,14 +824,14 @@ static gint jaw_text_get_n_selections(AtkText *text) {
     JAW_DEBUG("%p", text);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return -1;
     }
 
     JAW_GET_TEXT(text, -1);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return -1;
     }
 
@@ -870,7 +870,7 @@ static gchar *jaw_text_get_selection(AtkText *text, gint selection_num,
     JAW_DEBUG("%p, %d, %p, %p", text, selection_num, start_offset, end_offset);
 
     if (text == NULL || start_offset == NULL || end_offset == NULL) {
-        g_warning("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
+        g_debug("%s: Null argument. text=%p, start_offset=%p, end_offset=%p",
                   G_STRFUNC, (void *)text, (void *)start_offset,
                   (void *)end_offset);
         return NULL;
@@ -879,7 +879,7 @@ static gchar *jaw_text_get_selection(AtkText *text, gint selection_num,
     JAW_GET_TEXT(text, NULL); // create local JNI reference `jobject atk_text`
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -889,7 +889,7 @@ static gchar *jaw_text_get_selection(AtkText *text, gint selection_num,
                                                   cachedTextGetSelectionMethod);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jStrSeq == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jStrSeq using get_selection method",
+        g_debug("%s: Failed to create jStrSeq using get_selection method",
                   G_STRFUNC);
         return NULL;
     }
@@ -897,7 +897,7 @@ static gchar *jaw_text_get_selection(AtkText *text, gint selection_num,
     jstring jStr =
         (*jniEnv)->GetObjectField(jniEnv, jStrSeq, cachedTextStrFieldID);
     if (jStr == NULL) {
-        g_warning("%s: Failed to get jStr field", G_STRFUNC);
+        g_debug("%s: Failed to get jStr field", G_STRFUNC);
         return NULL;
     }
 
@@ -928,14 +928,14 @@ static gboolean jaw_text_add_selection(AtkText *text, gint start_offset,
     JAW_DEBUG("%p, %d, %d", text, start_offset, end_offset);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     JAW_GET_TEXT(text, FALSE);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -969,14 +969,14 @@ static gboolean jaw_text_remove_selection(AtkText *text, gint selection_num) {
     JAW_DEBUG("%p, %d", text, selection_num);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     JAW_GET_TEXT(text, FALSE);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -1013,14 +1013,14 @@ static gboolean jaw_text_set_selection(AtkText *text, gint selection_num,
     JAW_DEBUG("%p, %d, %d, %d", text, selection_num, start_offset, end_offset);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     JAW_GET_TEXT(text, FALSE);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -1066,14 +1066,14 @@ static gboolean jaw_text_set_caret_offset(AtkText *text, gint offset) {
     JAW_DEBUG("%p, %d", text, offset);
 
     if (text == NULL) {
-        g_warning("%s: Null argument text passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument text passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     JAW_GET_TEXT(text, FALSE);
 
     if (!jaw_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -1091,7 +1091,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -1107,7 +1107,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkText");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClassAtkText == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkText class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkText class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1115,7 +1115,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClassAtkText);
 
     if (cachedTextAtkTextClass == NULL) {
-        g_warning("%s: Failed to create global reference for AtkText class",
+        g_debug("%s: Failed to create global reference for AtkText class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1195,7 +1195,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkText method IDs",
+        g_debug("%s: Failed to cache one or more AtkText method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1204,7 +1204,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
         jniEnv, "org/GNOME/Accessibility/AtkText$StringSequence");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClassStringSeq == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkText$StringSequence class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkText$StringSequence class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1215,7 +1215,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
     if ((*jniEnv)->ExceptionCheck(jniEnv) ||
         cachedTextStringSequenceClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create global reference for "
+        g_debug("%s: Failed to create global reference for "
                   "AtkText$StringSequence class",
                   G_STRFUNC);
         goto cleanup_and_fail;
@@ -1236,7 +1236,7 @@ static gboolean jaw_text_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache StringSequence field IDs", G_STRFUNC);
+        g_debug("%s: Failed to cache StringSequence field IDs", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1283,7 +1283,7 @@ void jaw_text_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

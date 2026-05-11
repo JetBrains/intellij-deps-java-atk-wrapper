@@ -72,19 +72,19 @@ JawHyperlink *jaw_hyperlink_new(jobject jhyperlink) {
     JAW_DEBUG("%p", jhyperlink);
 
     if (jhyperlink == NULL) {
-        g_warning("%s: NULL jhyperlink parameter", G_STRFUNC);
+        g_debug("%s: NULL jhyperlink parameter", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: Failed to get JNI environment", G_STRFUNC);
+        g_debug("%s: Failed to get JNI environment", G_STRFUNC);
         return NULL;
     }
 
     JawHyperlink *jaw_hyperlink = g_object_new(JAW_TYPE_HYPERLINK, NULL);
     if (jaw_hyperlink == NULL) {
-        g_warning("%s: Failed to create JawHyperlink object", G_STRFUNC);
+        g_debug("%s: Failed to create JawHyperlink object", G_STRFUNC);
         return NULL;
     }
 
@@ -92,7 +92,7 @@ JawHyperlink *jaw_hyperlink_new(jobject jhyperlink) {
     if ((*jniEnv)->ExceptionCheck(jniEnv) ||
         jaw_hyperlink->jhyperlink == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create global reference", G_STRFUNC);
+        g_debug("%s: Failed to create global reference", G_STRFUNC);
         g_object_unref(jaw_hyperlink);
         return NULL;
     }
@@ -117,7 +117,7 @@ static void jaw_hyperlink_class_init(JawHyperlinkClass *klass) {
     JAW_DEBUG("%p", klass);
 
     if (klass == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -145,7 +145,7 @@ static void jaw_hyperlink_dispose(GObject *gobject) {
     JAW_DEBUG("%p", gobject);
 
     if (gobject == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -157,7 +157,7 @@ static void jaw_hyperlink_finalize(GObject *gobject) {
     JAW_DEBUG("%p", gobject);
 
     if (gobject == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -204,7 +204,7 @@ static gchar *jaw_hyperlink_get_uri(AtkHyperlink *atk_hyperlink, gint i) {
     JAW_DEBUG("%p, %d", atk_hyperlink, i);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -212,7 +212,7 @@ static gchar *jaw_hyperlink_get_uri(AtkHyperlink *atk_hyperlink, gint i) {
                       NULL); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -252,7 +252,7 @@ static AtkObject *jaw_hyperlink_get_object(AtkHyperlink *atk_hyperlink,
     JAW_DEBUG("%p, %d", atk_hyperlink, i);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -260,7 +260,7 @@ static AtkObject *jaw_hyperlink_get_object(AtkHyperlink *atk_hyperlink,
                       NULL); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -272,7 +272,7 @@ static AtkObject *jaw_hyperlink_get_object(AtkHyperlink *atk_hyperlink,
     }
     AtkObject *obj = (AtkObject *)jaw_impl_find_instance(jniEnv, ac);
     if (obj == NULL) {
-        g_warning("%s: No AtkObject found for AccessibleContext", G_STRFUNC);
+        g_debug("%s: No AtkObject found for AccessibleContext", G_STRFUNC);
     }
 
     // From documentation of the `atk_hyperlink_get_object`:
@@ -297,7 +297,7 @@ static gint jaw_hyperlink_get_end_index(AtkHyperlink *atk_hyperlink) {
     JAW_DEBUG("%p", atk_hyperlink);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument atk_hyperlink passed to the function",
+        g_debug("%s: Null argument atk_hyperlink passed to the function",
                   G_STRFUNC);
         return 0;
     }
@@ -306,7 +306,7 @@ static gint jaw_hyperlink_get_end_index(AtkHyperlink *atk_hyperlink) {
                       0); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -335,7 +335,7 @@ static gint jaw_hyperlink_get_start_index(AtkHyperlink *atk_hyperlink) {
     JAW_DEBUG("%p", atk_hyperlink);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument atk_hyperlink passed to the function",
+        g_debug("%s: Null argument atk_hyperlink passed to the function",
                   G_STRFUNC);
         return 0;
     }
@@ -344,7 +344,7 @@ static gint jaw_hyperlink_get_start_index(AtkHyperlink *atk_hyperlink) {
                       0); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -374,7 +374,7 @@ static gboolean jaw_hyperlink_is_valid(AtkHyperlink *atk_hyperlink) {
     JAW_DEBUG("%p", atk_hyperlink);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return FALSE;
     }
 
@@ -382,7 +382,7 @@ static gboolean jaw_hyperlink_is_valid(AtkHyperlink *atk_hyperlink) {
                       FALSE); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -410,7 +410,7 @@ static gint jaw_hyperlink_get_n_anchors(AtkHyperlink *atk_hyperlink) {
     JAW_DEBUG("%p", atk_hyperlink);
 
     if (atk_hyperlink == NULL) {
-        g_warning("%s: Null argument atk_hyperlink passed to the function",
+        g_debug("%s: Null argument atk_hyperlink passed to the function",
                   G_STRFUNC);
         return 0;
     }
@@ -419,7 +419,7 @@ static gint jaw_hyperlink_get_n_anchors(AtkHyperlink *atk_hyperlink) {
                       0); // create local JNI reference `jobject jhyperlink`
 
     if (!jaw_hyperlink_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -437,7 +437,7 @@ static gboolean jaw_hyperlink_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -452,7 +452,7 @@ static gboolean jaw_hyperlink_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkHyperlink");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkHyperlink class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkHyperlink class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -461,7 +461,7 @@ static gboolean jaw_hyperlink_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedHyperlinkAtkHyperlinkClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AtkHyperlink class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -497,7 +497,7 @@ static gboolean jaw_hyperlink_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkHyperlink method IDs",
+        g_debug("%s: Failed to cache one or more AtkHyperlink method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -531,7 +531,7 @@ void jaw_hyperlink_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

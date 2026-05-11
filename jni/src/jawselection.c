@@ -90,7 +90,7 @@ void jaw_selection_interface_init(AtkSelectionIface *iface, gpointer data) {
     JAW_DEBUG("%p, %p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -121,23 +121,23 @@ gpointer jaw_selection_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -147,7 +147,7 @@ gpointer jaw_selection_data_init(jobject ac) {
         cachedSelectionCreateAtkSelectionMethod, ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_selection == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jatk_selection using "
+        g_debug("%s: Failed to create jatk_selection using "
                   "create_atk_selection method",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -157,7 +157,7 @@ gpointer jaw_selection_data_init(jobject ac) {
     SelectionData *data = g_new0(SelectionData, 1);
     data->atk_selection = (*jniEnv)->NewGlobalRef(jniEnv, jatk_selection);
     if (data->atk_selection == NULL) {
-        g_warning("%s: Failed to create global ref for atk_selection",
+        g_debug("%s: Failed to create global ref for atk_selection",
                   G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -181,7 +181,7 @@ void jaw_selection_data_finalize(gpointer p) {
     JAW_DEBUG("%p", p);
 
     if (p == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_data_finalize");
         return;
     }
@@ -194,7 +194,7 @@ void jaw_selection_data_finalize(gpointer p) {
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+        g_debug("%s: JNIEnv is NULL in finalize", G_STRFUNC);
     } else {
         if (data->atk_selection != NULL) {
             (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_selection);
@@ -219,7 +219,7 @@ static gboolean jaw_selection_add_selection(AtkSelection *selection, gint i) {
     JAW_DEBUG("%p, %d", selection, i);
 
     if (selection == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_add_selection");
         return FALSE;
     }
@@ -229,7 +229,7 @@ static gboolean jaw_selection_add_selection(AtkSelection *selection, gint i) {
         FALSE); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -258,7 +258,7 @@ static gboolean jaw_selection_clear_selection(AtkSelection *selection) {
     JAW_DEBUG("%p", selection);
 
     if (selection == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_clear_selection");
         return FALSE;
     }
@@ -268,7 +268,7 @@ static gboolean jaw_selection_clear_selection(AtkSelection *selection) {
         FALSE); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -301,7 +301,7 @@ static AtkObject *jaw_selection_ref_selection(AtkSelection *selection, gint i) {
     JAW_DEBUG("%p, %d", selection, i);
 
     if (selection == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_ref_selection");
         return NULL;
     }
@@ -310,7 +310,7 @@ static AtkObject *jaw_selection_ref_selection(AtkSelection *selection, gint i) {
         selection, NULL); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -348,7 +348,7 @@ static gint jaw_selection_get_selection_count(AtkSelection *selection) {
     JAW_DEBUG("%p", selection);
 
     if (selection == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return 0;
     }
 
@@ -356,7 +356,7 @@ static gint jaw_selection_get_selection_count(AtkSelection *selection) {
                       0); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -385,7 +385,7 @@ static gboolean jaw_selection_is_child_selected(AtkSelection *selection,
     JAW_DEBUG("%p, %d", selection, i);
 
     if (selection == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_is_child_selected");
         return FALSE;
     }
@@ -395,7 +395,7 @@ static gboolean jaw_selection_is_child_selected(AtkSelection *selection,
         FALSE); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -426,7 +426,7 @@ static gboolean jaw_selection_remove_selection(AtkSelection *selection,
     JAW_DEBUG("%p, %d", selection, i);
 
     if (selection == NULL) {
-        g_warning(
+        g_debug(
             "Null argument passed to function jaw_selection_remove_selection");
         return FALSE;
     }
@@ -436,7 +436,7 @@ static gboolean jaw_selection_remove_selection(AtkSelection *selection,
         FALSE); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -465,7 +465,7 @@ static gboolean jaw_selection_select_all_selection(AtkSelection *selection) {
     JAW_DEBUG("%p", selection);
 
     if (selection == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return FALSE;
     }
 
@@ -474,7 +474,7 @@ static gboolean jaw_selection_select_all_selection(AtkSelection *selection) {
         FALSE); // create local JNI reference `jobject atk_selection`
 
     if (!jaw_selection_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -492,7 +492,7 @@ static gboolean jaw_selection_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -507,7 +507,7 @@ static gboolean jaw_selection_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkSelection");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkSelection class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkSelection class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -516,7 +516,7 @@ static gboolean jaw_selection_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedSelectionAtkSelectionClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AtkSelection class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -562,7 +562,7 @@ static gboolean jaw_selection_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkSelection method IDs",
+        g_debug("%s: Failed to cache one or more AtkSelection method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -596,7 +596,7 @@ void jaw_selection_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

@@ -140,7 +140,7 @@ static void jaw_object_class_init(JawObjectClass *klass) {
     JAW_DEBUG("%p", klass);
 
     if (klass == NULL) {
-        g_warning("%s: Null argument klass passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument klass passed to the function", G_STRFUNC);
         return;
     }
 
@@ -188,7 +188,7 @@ static void jaw_object_initialize(AtkObject *atk_obj, gpointer data) {
     JAW_DEBUG("%p, %p", atk_obj, data);
 
     if (atk_obj == NULL) {
-        g_warning("%s: Null argument atk_obj passed to the function",
+        g_debug("%s: Null argument atk_obj passed to the function",
                   G_STRFUNC);
         return;
     }
@@ -200,14 +200,14 @@ gpointer jaw_object_get_interface_data(JawObject *jaw_obj, guint iface) {
     JAW_DEBUG("%p, %u", jaw_obj, iface);
 
     if (jaw_obj == NULL) {
-        g_warning("%s: Null argument jaw_obj passed to the function",
+        g_debug("%s: Null argument jaw_obj passed to the function",
                   G_STRFUNC);
         return NULL;
     }
 
     JawObjectClass *klass = JAW_OBJECT_GET_CLASS(jaw_obj);
     if (klass == NULL) {
-        g_warning("%s: klass is NULL", G_STRFUNC);
+        g_debug("%s: klass is NULL", G_STRFUNC);
         return NULL;
     }
     if (klass->get_interface_data)
@@ -220,13 +220,13 @@ static void jaw_object_init(JawObject *object) {
     JAW_DEBUG("%p", object);
 
     if (object == NULL) {
-        g_warning("%s: Null argument object passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument object passed to the function", G_STRFUNC);
         return;
     }
 
     AtkObject *atk_obj = ATK_OBJECT(object);
     if (atk_obj == NULL) {
-        g_warning("%s: atk_obj is NULL", G_STRFUNC);
+        g_debug("%s: atk_obj is NULL", G_STRFUNC);
         return;
     }
     atk_obj->description = NULL;
@@ -238,7 +238,7 @@ static void jaw_object_dispose(GObject *gobject) {
     JAW_DEBUG("%p", gobject);
 
     if (gobject == NULL) {
-        g_warning("%s: Null argument gobject passed to the function",
+        g_debug("%s: Null argument gobject passed to the function",
                   G_STRFUNC);
         G_OBJECT_CLASS(jaw_object_parent_class)->dispose(gobject);
         return;
@@ -251,7 +251,7 @@ static void jaw_object_finalize(GObject *gobject) {
     JAW_DEBUG("%p", gobject);
 
     if (gobject == NULL) {
-        g_warning("%s: Null argument gobject passed to the function",
+        g_debug("%s: Null argument gobject passed to the function",
                   G_STRFUNC);
         return;
     }
@@ -330,7 +330,7 @@ static AtkObject *jaw_object_get_parent(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -344,7 +344,7 @@ static AtkObject *jaw_object_get_parent(AtkObject *atk_obj) {
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -363,7 +363,7 @@ static AtkObject *jaw_object_get_parent(AtkObject *atk_obj) {
         return parent_obj;
     }
 
-    g_warning(
+    g_debug(
         "jaw_object_get_parent: didn't find jaw for parent, returning null");
     return NULL;
 }
@@ -383,14 +383,14 @@ static void jaw_object_set_parent(AtkObject *atk_obj, AtkObject *parent) {
     JAW_DEBUG("%p, %p", atk_obj, parent);
 
     if (!atk_obj || !parent) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
     JAW_GET_OBJECT(atk_obj, ); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -423,7 +423,7 @@ static const gchar *jaw_object_get_name(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -449,7 +449,7 @@ static const gchar *jaw_object_get_name(AtkObject *atk_obj) {
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -514,14 +514,14 @@ static void jaw_object_set_name(AtkObject *atk_obj, const gchar *name) {
     JAW_DEBUG("%p, %s", atk_obj, name);
 
     if (!atk_obj || !name) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
     JAW_GET_OBJECT(atk_obj, ); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -551,14 +551,14 @@ static const gchar *jaw_object_get_description(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -620,14 +620,14 @@ static void jaw_object_set_description(AtkObject *atk_obj,
     JAW_DEBUG("%p, %s", atk_obj, description);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
     JAW_GET_OBJECT(atk_obj, ); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -657,14 +657,14 @@ static gint jaw_object_get_n_children(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return 0;
     }
 
     JAW_GET_OBJECT(atk_obj, 0); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -694,7 +694,7 @@ static gint jaw_object_get_index_in_parent(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return -1;
     }
 
@@ -707,7 +707,7 @@ static gint jaw_object_get_index_in_parent(AtkObject *atk_obj) {
     JAW_GET_OBJECT(atk_obj, -1); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return -1;
     }
 
@@ -736,7 +736,7 @@ static AtkRole jaw_object_get_role(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return ATK_ROLE_INVALID;
     }
 
@@ -766,7 +766,7 @@ static void jaw_object_set_role(AtkObject *atk_obj, AtkRole role) {
     JAW_DEBUG("%p, %d", atk_obj, role);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -777,7 +777,7 @@ static void jaw_object_set_role(AtkObject *atk_obj, AtkRole role) {
 static gboolean is_collapsed_java_state(JNIEnv *jniEnv, jobject jobj) {
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -809,14 +809,14 @@ static AtkStateSet *jaw_object_ref_state_set(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -877,14 +877,14 @@ static const gchar *jaw_object_get_object_locale(AtkObject *atk_obj) {
     JAW_DEBUG("%p", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -942,14 +942,14 @@ static AtkRelationSet *jaw_object_ref_relation_set(AtkObject *atk_obj) {
     JAW_DEBUG("%p)", atk_obj);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -1019,7 +1019,7 @@ static AtkRelationSet *jaw_object_ref_relation_set(AtkObject *atk_obj) {
             }
             JawImpl *target_obj = jaw_impl_find_instance(jniEnv, jtarget);
             if (target_obj == NULL) {
-                g_warning(
+                g_debug(
                     "jaw_object_ref_relation_set: target_obj == NULL occurs\n");
             } else {
                 atk_object_add_relationship(atk_obj, rel_type,
@@ -1057,14 +1057,14 @@ static AtkObject *jaw_object_ref_child(AtkObject *atk_obj, gint i) {
     JAW_DEBUG("%p, %d", atk_obj, i);
 
     if (!atk_obj) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -1096,7 +1096,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -1113,7 +1113,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkObject");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkObject class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkObject class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1121,7 +1121,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedObjectAtkObjectClass == NULL) {
-        g_warning("%s: Failed to create global reference for AtkObject class",
+        g_debug("%s: Failed to create global reference for AtkObject class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1183,7 +1183,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "javax/accessibility/AccessibleState");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localAccessibleState == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AccessibleState class", G_STRFUNC);
+        g_debug("%s: Failed to find AccessibleState class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1192,7 +1192,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localAccessibleState);
 
     if (cachedObjectAccessibleStateClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AccessibleState class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -1206,7 +1206,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
         jniEnv, "org/GNOME/Accessibility/AtkObject$WrapKeyAndTarget");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localWrapKeyAndTarget == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find WrapKeyAndTarget class", G_STRFUNC);
+        g_debug("%s: Failed to find WrapKeyAndTarget class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1215,7 +1215,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localWrapKeyAndTarget);
 
     if (cachedObjectWrapKeyAndTargetClass == NULL) {
-        g_warning("%s: Failed to create global reference for WrapKeyAndTarget "
+        g_debug("%s: Failed to create global reference for WrapKeyAndTarget "
                   "class",
                   G_STRFUNC);
         goto cleanup_and_fail;
@@ -1244,7 +1244,7 @@ static gboolean jaw_object_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkObject method IDs",
+        g_debug("%s: Failed to cache one or more AtkObject method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1293,7 +1293,7 @@ void jaw_object_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

@@ -44,7 +44,7 @@ void jaw_util_cache_cleanup(JNIEnv *jniEnv);
 
 static inline void jaw_cache_cleanup(JNIEnv *jniEnv) {
     if (jniEnv == NULL) {
-        g_warning("%s: Null argument jniEnv passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument jniEnv passed to the function", G_STRFUNC);
         return;
     }
 
