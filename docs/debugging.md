@@ -33,14 +33,14 @@ For general debugging purposes, use the GLib logging functions.
 ### Common Logging Functions:
 - `g_debug()` - Debug messages (disabled by default)
 - `g_message()` - Informational messages
-- `g_warning()` - Warning messages
+- `g_warning()` - Warning messages for operational failures that need attention
 - `g_critical()` - Critical warnings
 - `g_error()` - Fatal errors (terminates the program)
 
 ### Example
 
 ```c
-g_warning("%s: jniEnv is NULL", G_STRFUNC);
+g_debug("%s: Null argument passed to the function", G_STRFUNC);
 ```
 
 ### More information:

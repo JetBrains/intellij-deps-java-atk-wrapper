@@ -98,7 +98,7 @@ void jaw_table_cell_interface_init(AtkTableCellIface *iface, gpointer data) {
     JAW_DEBUG("%p, %p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument iface passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument iface passed to the function", G_STRFUNC);
         return;
     }
 
@@ -129,23 +129,23 @@ gpointer jaw_table_cell_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument ac passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument ac passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -155,7 +155,7 @@ gpointer jaw_table_cell_data_init(jobject ac) {
         cachedTableCellCreateAtkTableCellMethod, ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_table_cell == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jatk_table_cell using "
+        g_debug("%s: Failed to create jatk_table_cell using "
                   "create_atk_table_cell method",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -165,7 +165,7 @@ gpointer jaw_table_cell_data_init(jobject ac) {
     TableCellData *data = g_new0(TableCellData, 1);
     data->atk_table_cell = (*jniEnv)->NewGlobalRef(jniEnv, jatk_table_cell);
     if (data->atk_table_cell == NULL) {
-        g_warning("%s: Failed to create global ref for atk_table_cell",
+        g_debug("%s: Failed to create global ref for atk_table_cell",
                   G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -189,20 +189,20 @@ void jaw_table_cell_data_finalize(gpointer p) {
     JAW_DEBUG("%p", p);
 
     if (p == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
     TableCellData *data = (TableCellData *)p;
     if (data == NULL) {
-        g_warning("%s: TableCellData is NULL after cast", G_STRFUNC);
+        g_debug("%s: TableCellData is NULL after cast", G_STRFUNC);
         return;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize, leaking JNI resources",
+        g_debug("%s: JNIEnv is NULL in finalize, leaking JNI resources",
                   G_STRFUNC);
     } else {
         if (data->atk_table_cell != NULL) {
@@ -228,7 +228,7 @@ static AtkObject *jaw_table_cell_get_table(AtkTableCell *cell) {
     JAW_DEBUG("%p", cell);
 
     if (cell == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -236,7 +236,7 @@ static AtkObject *jaw_table_cell_get_table(AtkTableCell *cell) {
         cell, NULL); // create local JNI reference `jobject jatk_table_cell`
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -244,7 +244,7 @@ static AtkObject *jaw_table_cell_get_table(AtkTableCell *cell) {
                                               cachedTableCellGetTableMethod);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jac == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to call get_table method", G_STRFUNC);
+        g_debug("%s: Failed to call get_table method", G_STRFUNC);
         return NULL;
     }
 
@@ -279,7 +279,7 @@ static gboolean getPosition(JNIEnv *jniEnv, jobject jatk_table_cell, gint *row,
     JAW_DEBUG("%p, %p, %p, %p", jniEnv, jatk_table_cell, row, column);
 
     if (jniEnv == NULL || row == NULL || column == NULL) {
-        g_warning("%s: Null argument. jniEnv=%p, row=%p, column=%p", G_STRFUNC,
+        g_debug("%s: Null argument. jniEnv=%p, row=%p, column=%p", G_STRFUNC,
                   (void *)jniEnv, (void *)row, (void *)column);
         return FALSE;
     }
@@ -287,14 +287,14 @@ static gboolean getPosition(JNIEnv *jniEnv, jobject jatk_table_cell, gint *row,
     jint jrow = (*jniEnv)->GetIntField(jniEnv, jatk_table_cell,
                                        cachedTableCellRowFieldID);
     if (jrow < 0) {
-        g_warning("%s: Invalid row value (%d) retrieved", G_STRFUNC, jrow);
+        g_debug("%s: Invalid row value (%d) retrieved", G_STRFUNC, jrow);
         return FALSE;
     }
 
     jint jcolumn = (*jniEnv)->GetIntField(jniEnv, jatk_table_cell,
                                           cachedTableCellColumnFieldID);
     if (jcolumn < 0) {
-        g_warning("%s: Invalid column value (%d) retrieved", G_STRFUNC,
+        g_debug("%s: Invalid column value (%d) retrieved", G_STRFUNC,
                   jcolumn);
         return FALSE;
     }
@@ -323,7 +323,7 @@ static gboolean jaw_table_cell_get_position(AtkTableCell *cell, gint *row,
     JAW_DEBUG("%p, %p, %p", cell, row, column);
 
     if (cell == NULL || row == NULL || column == NULL) {
-        g_warning("%s: Null argument. cell=%p, row=%p, column=%p", G_STRFUNC,
+        g_debug("%s: Null argument. cell=%p, row=%p, column=%p", G_STRFUNC,
                   (void *)cell, (void *)row, (void *)column);
         return FALSE;
     }
@@ -331,7 +331,7 @@ static gboolean jaw_table_cell_get_position(AtkTableCell *cell, gint *row,
     JAW_GET_TABLECELL(cell, FALSE);
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -362,14 +362,14 @@ static gboolean getRowSpan(JNIEnv *jniEnv, jobject jatk_table_cell,
     JAW_DEBUG("%p, %p, %p", jniEnv, jatk_table_cell, row_span);
 
     if (jniEnv == NULL || row_span == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     jint jrow_span = (*jniEnv)->GetIntField(jniEnv, jatk_table_cell,
                                             cachedTableCellRowSpanFieldID);
     if (jrow_span < 0) {
-        g_warning("%s: Invalid row span value (%d) retrieved", G_STRFUNC,
+        g_debug("%s: Invalid row span value (%d) retrieved", G_STRFUNC,
                   jrow_span);
         return FALSE;
     }
@@ -399,14 +399,14 @@ static gboolean getColumnSpan(JNIEnv *jniEnv, jobject jatk_table_cell,
     JAW_DEBUG("%p, %p, %p", jniEnv, jatk_table_cell, column_span);
 
     if (jniEnv == NULL || column_span == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return FALSE;
     }
 
     jint jcolumn_span = (*jniEnv)->GetIntField(
         jniEnv, jatk_table_cell, cachedTableCellColumnSpanFieldID);
     if (jcolumn_span < 0) {
-        g_warning("%s: Invalid column span value (%d) retrieved", G_STRFUNC,
+        g_debug("%s: Invalid column span value (%d) retrieved", G_STRFUNC,
                   jcolumn_span);
         return FALSE;
     }
@@ -442,7 +442,7 @@ static gboolean jaw_table_cell_get_row_column_span(AtkTableCell *cell,
 
     if (cell == NULL || row == NULL || column == NULL || row_span == NULL ||
         column_span == NULL) {
-        g_warning("%s: Null argument. cell=%p, row=%p, column=%p, row_span=%p, "
+        g_debug("%s: Null argument. cell=%p, row=%p, column=%p, row_span=%p, "
                   "column_span=%p",
                   G_STRFUNC, (void *)cell, (void *)row, (void *)column,
                   (void *)row_span, (void *)column_span);
@@ -452,22 +452,22 @@ static gboolean jaw_table_cell_get_row_column_span(AtkTableCell *cell,
     JAW_GET_TABLECELL(cell, FALSE);
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
     if (!getPosition(jniEnv, jatk_table_cell, row, column)) {
-        g_warning("%s: getPosition failed", G_STRFUNC);
+        g_debug("%s: getPosition failed", G_STRFUNC);
         return FALSE;
     }
 
     if (!getRowSpan(jniEnv, jatk_table_cell, row_span)) {
-        g_warning("%s: getRowSpan failed", G_STRFUNC);
+        g_debug("%s: getRowSpan failed", G_STRFUNC);
         return FALSE;
     }
 
     if (!getColumnSpan(jniEnv, jatk_table_cell, column_span)) {
-        g_warning("%s: getColumnSpan failed", G_STRFUNC);
+        g_debug("%s: getColumnSpan failed", G_STRFUNC);
         return FALSE;
     }
 
@@ -492,20 +492,20 @@ static gint jaw_table_cell_get_row_span(AtkTableCell *cell) {
     JAW_DEBUG("%p", cell);
 
     if (cell == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return 0;
     }
 
     JAW_GET_TABLECELL(cell, 0);
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
     gint row_span = 0;
     if (!getRowSpan(jniEnv, jatk_table_cell, &row_span)) {
-        g_warning("%s: getRowSpan failed", G_STRFUNC);
+        g_debug("%s: getRowSpan failed", G_STRFUNC);
         return 0;
     }
 
@@ -530,20 +530,20 @@ static gint jaw_table_cell_get_column_span(AtkTableCell *cell) {
     JAW_DEBUG("%p", cell);
 
     if (cell == NULL) {
-        g_warning("%s: Null argument cell passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument cell passed to the function", G_STRFUNC);
         return 0;
     }
 
     JAW_GET_TABLECELL(cell, 0);
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
     gint column_span = 0;
     if (!getColumnSpan(jniEnv, jatk_table_cell, &column_span)) {
-        g_warning("%s: getColumnSpan failed", G_STRFUNC);
+        g_debug("%s: getColumnSpan failed", G_STRFUNC);
         return 0;
     }
 
@@ -565,7 +565,7 @@ static GPtrArray *jaw_table_cell_get_column_header_cells(AtkTableCell *cell) {
     JAW_DEBUG("%p", cell);
 
     if (cell == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -573,7 +573,7 @@ static GPtrArray *jaw_table_cell_get_column_header_cells(AtkTableCell *cell) {
         cell, NULL); // create local JNI reference `jobject jatk_table_cell`
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -582,14 +582,14 @@ static GPtrArray *jaw_table_cell_get_column_header_cells(AtkTableCell *cell) {
         cachedTableCellGetAccessibleColumnHeaderMethod);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || columnHeaders == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to call get_accessible_column_header method",
+        g_debug("%s: Failed to call get_accessible_column_header method",
                   G_STRFUNC);
         return NULL;
     }
 
     jsize length = (*jniEnv)->GetArrayLength(jniEnv, columnHeaders);
     if (length < 0) {
-        g_warning("%s: Invalid columnHeaders array length: %d", G_STRFUNC,
+        g_debug("%s: Invalid columnHeaders array length: %d", G_STRFUNC,
                   length);
         return NULL;
     }
@@ -599,7 +599,7 @@ static GPtrArray *jaw_table_cell_get_column_header_cells(AtkTableCell *cell) {
 
     GPtrArray *result = g_ptr_array_sized_new(length);
     if (result == NULL) {
-        g_warning("%s: Failed to allocate GPtrArray", G_STRFUNC);
+        g_debug("%s: Failed to allocate GPtrArray", G_STRFUNC);
         return NULL;
     }
 
@@ -650,7 +650,7 @@ static GPtrArray *jaw_table_cell_get_row_header_cells(AtkTableCell *cell) {
     JAW_DEBUG("%p", cell);
 
     if (cell == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -658,7 +658,7 @@ static GPtrArray *jaw_table_cell_get_row_header_cells(AtkTableCell *cell) {
         cell, NULL); // create local JNI reference `jobject jatk_table_cell`
 
     if (!jaw_table_cell_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -666,14 +666,14 @@ static GPtrArray *jaw_table_cell_get_row_header_cells(AtkTableCell *cell) {
         jniEnv, jatk_table_cell, cachedTableCellGetAccessibleRowHeaderMethod);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || rowHeaders == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to call get_accessible_row_header method",
+        g_debug("%s: Failed to call get_accessible_row_header method",
                   G_STRFUNC);
         return NULL;
     }
 
     jsize length = (*jniEnv)->GetArrayLength(jniEnv, rowHeaders);
     if (length < 0) {
-        g_warning("%s: Invalid rowHeaders array length: %d", G_STRFUNC, length);
+        g_debug("%s: Invalid rowHeaders array length: %d", G_STRFUNC, length);
         return NULL;
     }
     if (length == 0) {
@@ -682,7 +682,7 @@ static GPtrArray *jaw_table_cell_get_row_header_cells(AtkTableCell *cell) {
 
     GPtrArray *result = g_ptr_array_sized_new(length);
     if (result == NULL) {
-        g_warning("%s: Failed to allocate GPtrArray", G_STRFUNC);
+        g_debug("%s: Failed to allocate GPtrArray", G_STRFUNC);
         return NULL;
     }
 
@@ -721,7 +721,7 @@ static gboolean jaw_table_cell_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -736,7 +736,7 @@ static gboolean jaw_table_cell_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkTableCell");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkTableCell class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkTableCell class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -745,7 +745,7 @@ static gboolean jaw_table_cell_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedTableCellAtkTableCellClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AtkTableCell class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -793,7 +793,7 @@ static gboolean jaw_table_cell_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning(
+        g_debug(
             "%s: Failed to cache one or more AtkTableCell method/field IDs",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -827,7 +827,7 @@ void jaw_tablecell_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

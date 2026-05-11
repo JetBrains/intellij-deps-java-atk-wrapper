@@ -122,19 +122,19 @@ static gboolean notify_hf(gpointer key, gpointer value, gpointer data) {
     JAW_DEBUG("%p, %p, %p", key, value, data);
 
     if (value == NULL || data == NULL) {
-        g_warning("%s: Null argument passed. value=%p, data=%p", G_STRFUNC,
+        g_debug("%s: Null argument passed. value=%p, data=%p", G_STRFUNC,
                   (void *)value, (void *)data);
         return FALSE;
     }
 
     JawKeyListenerInfo *info = (JawKeyListenerInfo *)value;
     if (info == NULL) {
-        g_warning("%s: info is NULL", G_STRFUNC);
+        g_debug("%s: info is NULL", G_STRFUNC);
         return FALSE;
     }
     AtkKeyEventStruct *key_event = (AtkKeyEventStruct *)data;
     if (key_event == NULL) {
-        g_warning("%s: key_event is NULL", G_STRFUNC);
+        g_debug("%s: key_event is NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -160,14 +160,14 @@ static void insert_hf(gpointer key, gpointer value, gpointer data) {
     JAW_DEBUG("%p, %p, %p", key, value, data);
 
     if (key == NULL || value == NULL || data == NULL) {
-        g_warning("%s: Null argument passed. key=%p, value=%p, data=%p",
+        g_debug("%s: Null argument passed. key=%p, value=%p, data=%p",
                   G_STRFUNC, (void *)key, (void *)value, (void *)data);
         return;
     }
 
     GHashTable *hash_table = (GHashTable *)data;
     if (hash_table == NULL) {
-        g_warning("%s: hash_table is NULL", G_STRFUNC);
+        g_debug("%s: hash_table is NULL", G_STRFUNC);
         return;
     }
     g_hash_table_insert(hash_table, key, value);
@@ -177,7 +177,7 @@ gboolean jaw_util_dispatch_key_event(AtkKeyEventStruct *event) {
     JAW_DEBUG("%p", event);
 
     if (event == NULL) {
-        g_warning("%s: Null argument event passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument event passed to the function", G_STRFUNC);
         return FALSE;
     }
 
@@ -212,7 +212,7 @@ static guint jaw_util_add_key_event_listener(AtkKeySnoopFunc listener,
     JAW_DEBUG("%p, %p", listener, data);
 
     if (listener == NULL) {
-        g_warning("%s: Null argument listener passed to the function",
+        g_debug("%s: Null argument listener passed to the function",
                   G_STRFUNC);
         return 0;
     }
@@ -305,12 +305,12 @@ guint jaw_util_get_tflag_from_jobj(JNIEnv *jniEnv, jobject jObj) {
     JAW_DEBUG("%p, %p", jniEnv, jObj);
 
     if (jniEnv == NULL) {
-        g_warning("%s: Null argument jniEnv passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument jniEnv passed to the function", G_STRFUNC);
         return 0;
     }
 
     if (!jawutil_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -339,12 +339,12 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserve) {
         return;
     }
 
-    g_warning("JNI_OnUnload() called but this is not supported yet\n");
+    g_debug("JNI_OnUnload() called but this is not supported yet\n");
 }
 
 JNIEnv *jaw_util_get_jni_env(void) {
     if (cachedJVM == NULL) {
-        g_warning("%s: cachedJVM == NULL", G_STRFUNC);
+        g_debug("%s: cachedJVM == NULL", G_STRFUNC);
         return NULL;
     }
 
@@ -399,18 +399,18 @@ static jobject jaw_util_get_java_acc_role(JNIEnv *jniEnv,
     JAW_DEBUG("%p, %s", jniEnv, roleName);
 
     if (jniEnv == NULL || roleName == NULL) {
-        g_warning("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
+        g_debug("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
                   G_STRFUNC, (void *)jniEnv, (void *)roleName);
         return NULL;
     }
 
     if (!jawutil_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -419,7 +419,7 @@ static jobject jaw_util_get_java_acc_role(JNIEnv *jniEnv,
         jniEnv, cachedUtilAccessibleRoleClass, roleName,
         "Ljavax/accessibility/AccessibleRole;");
     if (jfid == NULL) {
-        g_warning("%s: Failed to find field %s in AccessibleRole class",
+        g_debug("%s: Failed to find field %s in AccessibleRole class",
                   G_STRFUNC, roleName);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
@@ -435,7 +435,7 @@ static gboolean jaw_util_is_java_acc_role(JNIEnv *jniEnv, jobject acc_role,
     JAW_DEBUG("%p, %p, %s", jniEnv, acc_role, roleName);
 
     if (jniEnv == NULL || roleName == NULL) {
-        g_warning("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
+        g_debug("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
                   G_STRFUNC, (void *)jniEnv, (void *)roleName);
         return FALSE;
     }
@@ -540,7 +540,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
     JAW_DEBUG("%p", jAccessibleContext);
 
     if (jAccessibleContext == NULL) {
-        g_warning("%s: Null argument jAccessibleContext passed to the "
+        g_debug("%s: Null argument jAccessibleContext passed to the "
                   "function, return ATK_ROLE_UNKNOWN",
                   G_STRFUNC);
         return ATK_ROLE_UNKNOWN;
@@ -548,17 +548,17 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is null, return ATK_ROLE_UNKNOWN", G_STRFUNC);
+        g_debug("%s: jniEnv is null, return ATK_ROLE_UNKNOWN", G_STRFUNC);
         return ATK_ROLE_UNKNOWN;
     }
 
     if (!jawutil_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return ATK_ROLE_UNKNOWN;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame, return "
+        g_debug("%s: Failed to create a new local reference frame, return "
                   "ATK_ROLE_UNKNOWN",
                   G_STRFUNC);
         return ATK_ROLE_UNKNOWN;
@@ -568,7 +568,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
         jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
         jAccessibleContext);
     if (ac_role == NULL) {
-        g_warning("%s: Failed to get accessible role from AccessibleContext",
+        g_debug("%s: Failed to get accessible role from AccessibleContext",
                   G_STRFUNC);
     }
 
@@ -674,7 +674,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
             jniEnv, cachedUtilAtkObjectClass,
             cachedUtilGetAccessibleParentMethod, jAccessibleContext);
         if (jparent == NULL) {
-            g_warning("%s: Failed to get accessible parent using "
+            g_debug("%s: Failed to get accessible parent using "
                       "get_accessible_parent",
                       G_STRFUNC);
             result = ATK_ROLE_RADIO_BUTTON;
@@ -683,7 +683,7 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
                 jniEnv, cachedUtilAtkObjectClass,
                 cachedUtilGetAccessibleRoleMethod, jparent);
             if (parent_role == NULL) {
-                g_warning(
+                g_debug(
                     "%s: Failed to get parent role using get_accessible_role",
                     G_STRFUNC);
                 result = ATK_ROLE_RADIO_BUTTON;
@@ -755,18 +755,18 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
 static gboolean is_same_java_state(JNIEnv *jniEnv, jobject jobj,
                                    const gchar *strState) {
     if (jniEnv == NULL || strState == NULL) {
-        g_warning("%s: Null argument passed. jniEnv=%p, strState=%p", G_STRFUNC,
+        g_debug("%s: Null argument passed. jniEnv=%p, strState=%p", G_STRFUNC,
                   (void *)jniEnv, (void *)strState);
         return FALSE;
     }
 
     if (!jawutil_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return FALSE;
     }
@@ -775,7 +775,7 @@ static gboolean is_same_java_state(JNIEnv *jniEnv, jobject jobj,
         jniEnv, cachedUtilAccessibleStateClass, strState,
         "Ljavax/accessibility/AccessibleState;");
     if (jfid == NULL) {
-        g_warning("%s: Failed to find field %s in AccessibleState class",
+        g_debug("%s: Failed to find field %s in AccessibleState class",
                   G_STRFUNC, strState);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return FALSE;
@@ -783,7 +783,7 @@ static gboolean is_same_java_state(JNIEnv *jniEnv, jobject jobj,
     jobject jstate = (*jniEnv)->GetStaticObjectField(
         jniEnv, cachedUtilAccessibleStateClass, jfid);
     if (jstate == NULL) {
-        g_warning("%s: Failed to get static object field", G_STRFUNC);
+        g_debug("%s: Failed to get static object field", G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return FALSE;
     }
@@ -871,7 +871,7 @@ gchar *jaw_util_jstring_to_utf8_gchar(JNIEnv *env, jstring jstr) {
 AtkStateType jaw_util_get_atk_state_type_from_java_state(JNIEnv *jniEnv,
                                                          jobject jobj) {
     if (jniEnv == NULL) {
-        g_warning("%s: Null argument jniEnv passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument jniEnv passed to the function", G_STRFUNC);
         return ATK_STATE_INVALID;
     }
 
@@ -975,7 +975,7 @@ void jaw_util_get_rect_info(JNIEnv *jniEnv, jobject jrect, gint *x, gint *y,
 
     if (jniEnv == NULL || x == NULL || y == NULL || width == NULL ||
         height == NULL || jrect == NULL) {
-        g_warning("%s: Null argument passed "
+        g_debug("%s: Null argument passed "
                   "(jniEnv=%p, x=%p, y=%p, width=%p, height=%p, jrect=%p)",
                   G_STRFUNC, (void *)jniEnv, (void *)x, (void *)y,
                   (void *)width, (void *)height, (void *)jrect);
@@ -983,7 +983,7 @@ void jaw_util_get_rect_info(JNIEnv *jniEnv, jobject jrect, gint *x, gint *y,
     }
 
     if (!jawutil_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -1006,7 +1006,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -1024,7 +1024,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkObject");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localAtkObject == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkObject class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkObject class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1032,7 +1032,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localAtkObject);
 
     if (cachedUtilAtkObjectClass == NULL) {
-        g_warning("%s: Failed to create global reference for AtkObject class",
+        g_debug("%s: Failed to create global reference for AtkObject class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1041,7 +1041,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "javax/accessibility/AccessibleRole");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localAccessibleRole == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AccessibleRole class", G_STRFUNC);
+        g_debug("%s: Failed to find AccessibleRole class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1050,7 +1050,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localAccessibleRole);
 
     if (cachedUtilAccessibleRoleClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AccessibleRole class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -1060,7 +1060,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "javax/accessibility/AccessibleState");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localAccessibleState == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AccessibleState class", G_STRFUNC);
+        g_debug("%s: Failed to find AccessibleState class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1069,7 +1069,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localAccessibleState);
 
     if (cachedUtilAccessibleStateClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AccessibleState class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -1078,7 +1078,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     localRectangle = (*jniEnv)->FindClass(jniEnv, "java/awt/Rectangle");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localRectangle == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find Rectangle class", G_STRFUNC);
+        g_debug("%s: Failed to find Rectangle class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -1086,7 +1086,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localRectangle);
 
     if (cachedUtilRectangleClass == NULL) {
-        g_warning("%s: Failed to create global reference for Rectangle class",
+        g_debug("%s: Failed to create global reference for Rectangle class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1124,7 +1124,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
         cachedUtilRectangleHeightField == NULL) {
 
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to cache one or more method/field IDs",
+        g_debug("%s: Failed to cache one or more method/field IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -1169,7 +1169,7 @@ void jaw_util_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

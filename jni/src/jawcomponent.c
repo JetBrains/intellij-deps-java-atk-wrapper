@@ -122,7 +122,7 @@ void jaw_component_interface_init(AtkComponentIface *iface, gpointer data) {
     JAW_DEBUG("%p,%p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return;
     }
 
@@ -163,23 +163,23 @@ gpointer jaw_component_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -189,7 +189,7 @@ gpointer jaw_component_data_init(jobject ac) {
         cachedComponentCreateAtkComponentMethod, ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_component == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jatk_component using "
+        g_debug("%s: Failed to create jatk_component using "
                   "create_atk_component method",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -199,7 +199,7 @@ gpointer jaw_component_data_init(jobject ac) {
     ComponentData *data = g_new0(ComponentData, 1);
     data->atk_component = (*jniEnv)->NewGlobalRef(jniEnv, jatk_component);
     if (data->atk_component == NULL) {
-        g_warning("%s: Failed to create global ref for atk_component",
+        g_debug("%s: Failed to create global ref for atk_component",
                   G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -229,14 +229,14 @@ void jaw_component_data_finalize(gpointer p) {
 
     ComponentData *data = (ComponentData *)p;
     if (data == NULL) {
-        g_warning("%s: data is null after cast", G_STRFUNC);
+        g_debug("%s: data is null after cast", G_STRFUNC);
         return;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+        g_debug("%s: JNIEnv is NULL in finalize", G_STRFUNC);
     } else {
         if (data->atk_component != NULL) {
             (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_component);
@@ -267,7 +267,7 @@ static gboolean jaw_component_contains(AtkComponent *component, gint x, gint y,
     JAW_DEBUG("%p, %d, %d, %d", component, x, y, coord_type);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return FALSE;
     }
 
@@ -276,7 +276,7 @@ static gboolean jaw_component_contains(AtkComponent *component, gint x, gint y,
         FALSE); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -313,7 +313,7 @@ jaw_component_ref_accessible_at_point(AtkComponent *component, gint x, gint y,
     JAW_DEBUG("%p, %d, %d, %d", component, x, y, coord_type);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to function ", G_STRFUNC);
+        g_debug("%s: Null argument passed to function ", G_STRFUNC);
         return NULL;
     }
 
@@ -321,7 +321,7 @@ jaw_component_ref_accessible_at_point(AtkComponent *component, gint x, gint y,
         component, NULL); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -330,7 +330,7 @@ jaw_component_ref_accessible_at_point(AtkComponent *component, gint x, gint y,
         (jint)x, (jint)y, (jint)coord_type);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || child_ac == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to call get_accessible_at_point method",
+        g_debug("%s: Failed to call get_accessible_at_point method",
                   G_STRFUNC);
         return NULL;
     }
@@ -373,7 +373,7 @@ static void jaw_component_get_extents(AtkComponent *component, gint *x, gint *y,
               coord_type);
 
     if (component == NULL) {
-        g_warning("%s: Null component passed to function", G_STRFUNC);
+        g_debug("%s: Null component passed to function", G_STRFUNC);
         return;
     }
 
@@ -390,7 +390,7 @@ static void jaw_component_get_extents(AtkComponent *component, gint *x, gint *y,
         component, ); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -450,7 +450,7 @@ static gboolean jaw_component_set_extents(AtkComponent *component, gint x,
               coord_type);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return FALSE;
     }
 
@@ -459,7 +459,7 @@ static gboolean jaw_component_set_extents(AtkComponent *component, gint x,
         FALSE); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -493,7 +493,7 @@ static gboolean jaw_component_set_position(AtkComponent *component, gint x,
     JAW_DEBUG("%p, %d, %d, %d", component, x, y, coord_type);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return FALSE;
     }
 
@@ -502,7 +502,7 @@ static gboolean jaw_component_set_position(AtkComponent *component, gint x,
         FALSE); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -534,7 +534,7 @@ static gboolean jaw_component_set_size(AtkComponent *component, gint width,
     JAW_DEBUG("%p, %d, %d", component, width, height);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to function", G_STRFUNC);
+        g_debug("%s: Null argument passed to function", G_STRFUNC);
         return FALSE;
     }
 
@@ -543,7 +543,7 @@ static gboolean jaw_component_set_size(AtkComponent *component, gint width,
         FALSE); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -572,7 +572,7 @@ static gboolean jaw_component_grab_focus(AtkComponent *component) {
     JAW_DEBUG("%p", component);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return FALSE;
     }
 
@@ -581,7 +581,7 @@ static gboolean jaw_component_grab_focus(AtkComponent *component) {
         FALSE); // create local JNI reference `jobject atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -610,7 +610,7 @@ static AtkLayer jaw_component_get_layer(AtkComponent *component) {
     JAW_DEBUG("%p", component);
 
     if (component == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return ATK_LAYER_INVALID;
     }
 
@@ -619,7 +619,7 @@ static AtkLayer jaw_component_get_layer(AtkComponent *component) {
                                           // atk_component`
 
     if (!jaw_component_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return ATK_LAYER_INVALID;
     }
 
@@ -637,7 +637,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -653,7 +653,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkComponent");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkComponent class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkComponent class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -662,7 +662,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedComponentAtkComponentClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AtkComponent class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -711,7 +711,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
         cachedComponentGetLayerMethod == NULL) {
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkComponent method IDs",
+        g_debug("%s: Failed to cache one or more AtkComponent method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -720,7 +720,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localRectangleClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to find Rectangle class", G_STRFUNC);
+        g_debug("%s: Failed to find Rectangle class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -732,7 +732,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
         cachedComponentRectangleClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to create global reference for Rectangle class",
+        g_debug("%s: Failed to create global reference for Rectangle class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -753,7 +753,7 @@ static gboolean jaw_component_init_jni_cache(JNIEnv *jniEnv) {
         cachedComponentRectangleHeightField == NULL) {
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more Rectangle field IDs",
+        g_debug("%s: Failed to cache one or more Rectangle field IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -796,7 +796,7 @@ void jaw_component_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

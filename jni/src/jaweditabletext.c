@@ -95,7 +95,7 @@ void jaw_editable_text_interface_init(AtkEditableTextIface *iface,
     JAW_DEBUG("%p,%p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -126,23 +126,23 @@ gpointer jaw_editable_text_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -152,7 +152,7 @@ gpointer jaw_editable_text_data_init(jobject ac) {
         cachedEditableTextCreateAtkEditableTextMethod, ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_editable_text == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jatk_editable_text using "
+        g_debug("%s: Failed to create jatk_editable_text using "
                   "create_atk_editable_text method",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -163,7 +163,7 @@ gpointer jaw_editable_text_data_init(jobject ac) {
     data->atk_editable_text =
         (*jniEnv)->NewGlobalRef(jniEnv, jatk_editable_text);
     if (data->atk_editable_text == NULL) {
-        g_warning("%s: Failed to create global ref for atk_editable_text",
+        g_debug("%s: Failed to create global ref for atk_editable_text",
                   G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -200,7 +200,7 @@ void jaw_editable_text_data_finalize(gpointer p) {
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+        g_debug("%s: JNIEnv is NULL in finalize", G_STRFUNC);
     } else {
         if (data->atk_editable_text != NULL) {
             (*jniEnv)->DeleteGlobalRef(jniEnv, data->atk_editable_text);
@@ -225,7 +225,7 @@ void jaw_editable_text_set_text_contents(AtkEditableText *text,
     JAW_DEBUG("%p, %s", text, string);
 
     if (text == NULL || string == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -233,14 +233,14 @@ void jaw_editable_text_set_text_contents(AtkEditableText *text,
         text, ); // creates local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
     jstring jstr = jaw_util_utf8_gchar_to_jstring(jniEnv, string);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jstring from UTF-8 input", G_STRFUNC);
+        g_debug("%s: Failed to create jstring from UTF-8 input", G_STRFUNC);
         return;
     }
 
@@ -271,7 +271,7 @@ void jaw_editable_text_insert_text(AtkEditableText *text, const gchar *string,
     JAW_DEBUG("%p, %s, %d, %p", text, string, utf8_len, position);
 
     if (text == NULL || string == NULL || position == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -279,7 +279,7 @@ void jaw_editable_text_insert_text(AtkEditableText *text, const gchar *string,
         text, ); // create local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -299,7 +299,7 @@ void jaw_editable_text_insert_text(AtkEditableText *text, const gchar *string,
     jstring jstr = jaw_util_utf8_gchar_to_jstring(jniEnv, buf);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create jstring from UTF-8 input", G_STRFUNC);
+        g_debug("%s: Failed to create jstring from UTF-8 input", G_STRFUNC);
         if (string_copy)
             g_free(string_copy);
         return;
@@ -350,7 +350,7 @@ void jaw_editable_text_copy_text(AtkEditableText *text, gint start_pos,
     JAW_DEBUG("%p, %d, %d", text, start_pos, end_pos);
 
     if (text == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -358,7 +358,7 @@ void jaw_editable_text_copy_text(AtkEditableText *text, gint start_pos,
         text, ); // create local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -387,7 +387,7 @@ void jaw_editable_text_cut_text(AtkEditableText *text, gint start_pos,
     JAW_DEBUG("%p, %d, %d", text, start_pos, end_pos);
 
     if (text == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -395,7 +395,7 @@ void jaw_editable_text_cut_text(AtkEditableText *text, gint start_pos,
         text, ); // create local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -423,7 +423,7 @@ void jaw_editable_text_delete_text(AtkEditableText *text, gint start_pos,
     JAW_DEBUG("%p, %d, %d", text, start_pos, end_pos);
 
     if (text == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -431,7 +431,7 @@ void jaw_editable_text_delete_text(AtkEditableText *text, gint start_pos,
         text, ); // create local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -457,7 +457,7 @@ void jaw_editable_text_paste_text(AtkEditableText *text, gint position) {
     JAW_DEBUG("%p, %d", text, position);
 
     if (text == NULL) {
-        g_warning("%s: Null argument passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument passed to the function", G_STRFUNC);
         return;
     }
 
@@ -465,7 +465,7 @@ void jaw_editable_text_paste_text(AtkEditableText *text, gint position) {
         text, ); // create local JNI reference `jobject atk_editable_text`
 
     if (!jaw_editable_text_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return;
     }
 
@@ -482,7 +482,7 @@ static gboolean jaw_editable_text_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -497,7 +497,7 @@ static gboolean jaw_editable_text_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkEditableText");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkEditableText class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkEditableText class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -506,7 +506,7 @@ static gboolean jaw_editable_text_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedEditableTextAtkEditableTextClass == NULL) {
-        g_warning(
+        g_debug(
             "%s: Failed to create global reference for AtkEditableText class",
             G_STRFUNC);
         goto cleanup_and_fail;
@@ -550,7 +550,7 @@ static gboolean jaw_editable_text_init_jni_cache(JNIEnv *jniEnv) {
 
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkEditableText method IDs",
+        g_debug("%s: Failed to cache one or more AtkEditableText method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -585,7 +585,7 @@ void jaw_editable_text_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 

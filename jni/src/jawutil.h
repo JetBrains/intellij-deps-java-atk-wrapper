@@ -90,22 +90,22 @@ gchar *jaw_util_jstring_to_utf8_gchar(JNIEnv *env, jstring jstr);
 #define JAW_GET_OBJ_IFACE(o, iface, Data, field, env, name, def_ret)           \
     JawObject *jaw_obj = JAW_OBJECT(o);                                        \
     if (!jaw_obj) {                                                            \
-        g_warning("%s: jaw_obj == NULL in JAW_GET_OBJ_IFACE", G_STRFUNC);      \
+        g_debug("%s: jaw_obj == NULL in JAW_GET_OBJ_IFACE", G_STRFUNC);      \
         return def_ret;                                                        \
     }                                                                          \
     Data *data = jaw_object_get_interface_data(jaw_obj, iface);                \
     if (!data) {                                                               \
-        g_warning("%s: data == NULL for interface %lu", G_STRFUNC, iface);     \
+        g_debug("%s: data == NULL for interface %lu", G_STRFUNC, iface);     \
         return def_ret;                                                        \
     }                                                                          \
     JNIEnv *env = jaw_util_get_jni_env();                                      \
     if (!env) {                                                                \
-        g_warning("%s: " #env " == NULL", G_STRFUNC);                          \
+        g_debug("%s: " #env " == NULL", G_STRFUNC);                            \
         return def_ret;                                                        \
     }                                                                          \
     jobject name = (*env)->NewLocalRef(env, data->field);                      \
     if (!name) {                                                               \
-        g_warning("%s: " #name " == NULL", G_STRFUNC);                         \
+        g_debug("%s: " #name " == NULL", G_STRFUNC);                           \
         return def_ret;                                                        \
     }
 
@@ -113,13 +113,13 @@ gchar *jaw_util_jstring_to_utf8_gchar(JNIEnv *env, jstring jstr);
                     def_ret)                                                   \
     JawObject *object_name = CAST(o);                                          \
     if (!object_name) {                                                        \
-        g_warning("%s: " #object_name " == NULL", G_STRFUNC);                  \
+        g_debug("%s: " #object_name " == NULL", G_STRFUNC);                    \
         return def_ret;                                                        \
     }                                                                          \
     JNIEnv *env = jaw_util_get_jni_env();                                      \
     jobject name = (*env)->NewLocalRef(env, object_name->field);               \
     if (!name) {                                                               \
-        g_warning("%s: " #name " == NULL", G_STRFUNC);                         \
+        g_debug("%s: " #name " == NULL", G_STRFUNC);                           \
         return def_ret;                                                        \
     }
 

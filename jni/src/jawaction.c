@@ -107,7 +107,7 @@ void jaw_action_interface_init(AtkActionIface *iface, gpointer data) {
     JAW_DEBUG("%p, %p", iface, data);
 
     if (iface == NULL) {
-        g_warning("%s: Null argument iface passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument iface passed to the function", G_STRFUNC);
         return;
     }
 
@@ -142,23 +142,23 @@ gpointer jaw_action_data_init(jobject ac) {
     JAW_DEBUG("%p", ac);
 
     if (ac == NULL) {
-        g_warning("%s: Null argument ac passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument ac passed to the function", G_STRFUNC);
         return NULL;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv is NULL", G_STRFUNC);
+        g_debug("%s: jniEnv is NULL", G_STRFUNC);
         return NULL;
     }
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
     if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_warning("%s: Failed to create a new local reference frame",
+        g_debug("%s: Failed to create a new local reference frame",
                   G_STRFUNC);
         return NULL;
     }
@@ -168,7 +168,7 @@ gpointer jaw_action_data_init(jobject ac) {
         ac);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jatk_action == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create AtkAction Java object via "
+        g_debug("%s: Failed to create AtkAction Java object via "
                   "create_atk_action()",
                   G_STRFUNC);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
@@ -178,7 +178,7 @@ gpointer jaw_action_data_init(jobject ac) {
     ActionData *data = g_new0(ActionData, 1);
     data->atk_action = (*jniEnv)->NewGlobalRef(jniEnv, jatk_action);
     if (data->atk_action == NULL) {
-        g_warning("%s: Failed to create global ref for atk_action", G_STRFUNC);
+        g_debug("%s: Failed to create global ref for atk_action", G_STRFUNC);
         g_free(data);
         (*jniEnv)->PopLocalFrame(jniEnv, NULL);
         return NULL;
@@ -207,14 +207,14 @@ void jaw_action_data_finalize(gpointer p) {
 
     ActionData *data = (ActionData *)p;
     if (data == NULL) {
-        g_warning("%s: data is null after cast", G_STRFUNC);
+        g_debug("%s: data is null after cast", G_STRFUNC);
         return;
     }
 
     JNIEnv *jniEnv = jaw_util_get_jni_env();
 
     if (jniEnv == NULL) {
-        g_warning("%s: JNIEnv is NULL in finalize", G_STRFUNC);
+        g_debug("%s: JNIEnv is NULL in finalize", G_STRFUNC);
     } else {
         if (data->jstrLocalizedName != NULL) {
             if (data->localized_name != NULL) {
@@ -261,7 +261,7 @@ static gboolean jaw_action_do_action(AtkAction *action, gint i) {
     JAW_DEBUG("%p, %d", action, i);
 
     if (action == NULL) {
-        g_warning("%s: Null action passed (index=%d)", G_STRFUNC, i);
+        g_debug("%s: Null action passed (index=%d)", G_STRFUNC, i);
         return FALSE;
     }
 
@@ -269,7 +269,7 @@ static gboolean jaw_action_do_action(AtkAction *action, gint i) {
                    FALSE); // create local JNI reference `jobject atk_action`
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
@@ -300,7 +300,7 @@ static gint jaw_action_get_n_actions(AtkAction *action) {
     JAW_DEBUG("%p", action);
 
     if (action == NULL) {
-        g_warning("%s: Null action passed to the function", G_STRFUNC);
+        g_debug("%s: Null action passed to the function", G_STRFUNC);
         return 0;
     }
 
@@ -308,7 +308,7 @@ static gint jaw_action_get_n_actions(AtkAction *action) {
                    0); // create local JNI reference `jobject atk_action`
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return 0;
     }
 
@@ -338,7 +338,7 @@ static const gchar *jaw_action_get_description(AtkAction *action, gint i) {
     JAW_DEBUG("%p, %d", action, i);
 
     if (action == NULL) {
-        g_warning("%s: Null action passed to the function", G_STRFUNC);
+        g_debug("%s: Null action passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -346,7 +346,7 @@ static const gchar *jaw_action_get_description(AtkAction *action, gint i) {
                    NULL); // create local JNI reference `jobject atk_action`
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -404,11 +404,11 @@ static gboolean jaw_action_set_description(AtkAction *action, gint i,
     JAW_DEBUG("%p, %d, %s", action, i, description);
 
     if (action == NULL) {
-        g_warning("%s: Null action passed (index=%d)", G_STRFUNC, i);
+        g_debug("%s: Null action passed (index=%d)", G_STRFUNC, i);
         return FALSE;
     }
     if (description == NULL) {
-        g_warning("%s:  Null description passed (index=%d)", G_STRFUNC, i);
+        g_debug("%s:  Null description passed (index=%d)", G_STRFUNC, i);
         return FALSE;
     }
 
@@ -416,14 +416,14 @@ static gboolean jaw_action_set_description(AtkAction *action, gint i,
                    FALSE); // create local JNI reference `jobject atk_action`
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return FALSE;
     }
 
     jstring jdescription = (*jniEnv)->NewStringUTF(jniEnv, description);
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jdescription == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to create Java string for description",
+        g_debug("%s: Failed to create Java string for description",
                   G_STRFUNC);
         return FALSE;
     }
@@ -453,7 +453,7 @@ static const gchar *jaw_action_get_localized_name(AtkAction *action, gint i) {
     JAW_DEBUG("%p, %d", action, i);
 
     if (action == NULL) {
-        g_warning("%s: Null argument action passed to the function", G_STRFUNC);
+        g_debug("%s: Null argument action passed to the function", G_STRFUNC);
         return NULL;
     }
 
@@ -461,7 +461,7 @@ static const gchar *jaw_action_get_localized_name(AtkAction *action, gint i) {
                    NULL); // create local JNI reference `jobject atk_action`
 
     if (!jaw_action_init_jni_cache(jniEnv)) {
-        g_warning("%s: Failed to initialize JNI cache", G_STRFUNC);
+        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
         return NULL;
     }
 
@@ -507,7 +507,7 @@ static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return FALSE;
     }
 
@@ -522,7 +522,7 @@ static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv) {
         (*jniEnv)->FindClass(jniEnv, "org/GNOME/Accessibility/AtkAction");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localClass == NULL) {
         jaw_jni_clear_exception(jniEnv);
-        g_warning("%s: Failed to find AtkAction class", G_STRFUNC);
+        g_debug("%s: Failed to find AtkAction class", G_STRFUNC);
         goto cleanup_and_fail;
     }
 
@@ -530,7 +530,7 @@ static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv) {
     (*jniEnv)->DeleteLocalRef(jniEnv, localClass);
 
     if (cachedActionAtkActionClass == NULL) {
-        g_warning("%s: Failed to create global reference for AtkAction class",
+        g_debug("%s: Failed to create global reference for AtkAction class",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -567,7 +567,7 @@ static gboolean jaw_action_init_jni_cache(JNIEnv *jniEnv) {
         cachedActionGetLocalizedNameMethod == NULL) {
         jaw_jni_clear_exception(jniEnv);
 
-        g_warning("%s: Failed to cache one or more AtkAction method IDs",
+        g_debug("%s: Failed to cache one or more AtkAction method IDs",
                   G_STRFUNC);
         goto cleanup_and_fail;
     }
@@ -599,7 +599,7 @@ void jaw_action_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
     if (jniEnv == NULL) {
-        g_warning("%s: jniEnv == NULL", G_STRFUNC);
+        g_debug("%s: jniEnv == NULL", G_STRFUNC);
         return;
     }
 
