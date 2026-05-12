@@ -35,9 +35,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JTree;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
-import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeListener;
-import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -65,54 +63,23 @@ public class AtkWrapper {
     }
 
     private static void emitJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
-        if (tree == null || treeAccContext == null) {
-            return;
-        }
-
-        AccessibleContext childAccContext = resolveJTreeActiveDescendant(tree, treeAccContext);
+        AccessibleContext childAccContext = JTreeContextCacheManager.resolveActiveDescendant(tree, treeAccContext);
         if (childAccContext == null) {
             return;
         }
 
-        AtkWrapperDisposer.getInstance().addRecord(childAccContext);
-
-        Object[] args = new Object[1];
-        args[0] = childAccContext;
-        emitSignal(treeAccContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+        emitActiveDescendantChanged(treeAccContext, childAccContext);
     }
 
-    private static AccessibleContext resolveJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
-        if (tree == null || treeAccContext == null) {
-            return null;
+    private static void emitActiveDescendantChanged(AccessibleContext sourceContext, AccessibleContext childContext) {
+        if (sourceContext == null || childContext == null) {
+            return;
         }
 
-        TreePath selectionPath = tree.getLeadSelectionPath();
-        if (selectionPath == null) {
-            selectionPath = tree.getSelectionPath();
-        }
-        if (selectionPath == null) {
-            return null;
-        }
+        AtkWrapperDisposer.getInstance().addRecord(sourceContext);
+        AtkWrapperDisposer.getInstance().addRecord(childContext);
 
-        AccessibleContext childContext = getAccessibleContextForJTreePath(tree, treeAccContext, selectionPath);
-        return childContext;
-    }
-
-    private static AccessibleContext getAccessibleContextForJTreePath(JTree tree, AccessibleContext treeAccContext, TreePath selectionPath) {
-        if (tree == null || treeAccContext == null || selectionPath == null) {
-            return null;
-        }
-
-        Rectangle bounds = tree.getPathBounds(selectionPath);
-        AccessibleComponent treeComponent = treeAccContext.getAccessibleComponent();
-        if (bounds != null && treeComponent != null) {
-            Accessible node = treeComponent.getAccessibleAt(new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
-            if (node != null) {
-                return node.getAccessibleContext();
-            }
-        }
-
-        return null;
+        emitSignal(sourceContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, new Object[] { childContext });
     }
 
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
@@ -251,6 +218,14 @@ public class AtkWrapper {
                     emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_REMOVE, args);
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY)) {
+                if (ac.getAccessibleRole() == AccessibleRole.TREE) {
+                    AccessibleContext treeChild = JTreeContextCacheManager.resolveActiveDescendant(ac);
+                    if (treeChild != null) {
+                        emitActiveDescendantChanged(ac, treeChild);
+                        return;
+                    }
+                }
+
                 AccessibleContext child_ac;
                 if (newValue instanceof Accessible accessible) {
                     child_ac = accessible.getAccessibleContext();
@@ -261,12 +236,7 @@ public class AtkWrapper {
                     return;
                 }
 
-                Object[] args = new Object[1];
-                args[0] = child_ac;
-
-                AtkWrapperDisposer.getInstance().addRecord(child_ac);
-
-                emitSignal(ac, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+                emitActiveDescendantChanged(ac, child_ac);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY)) {
                 boolean isTextEvent = false;
                 AccessibleRole role = ac.getAccessibleRole();
@@ -907,6 +877,9 @@ public class AtkWrapper {
                 }
             }
             if (eventSourceContext != null) {
+                if (eventSource instanceof JTree tree) {
+                    JTreeContextCacheManager.rememberJTree(tree, eventSourceContext);
+                }
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
                 focusNotify(eventSourceContext);
             }
