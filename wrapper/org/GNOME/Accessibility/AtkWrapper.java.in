@@ -673,7 +673,10 @@ public class AtkWrapper {
 
     public AtkWrapper() {
         if (!accessibilityEnabled) {
-            throw new IllegalStateException("AtkWrapper not initialized due to disabled accessibility.");
+            if (log.isLoggable(Level.SEVERE)) {
+                log.log(Level.SEVERE, "AtkWrapper not initialized due to disabled accessibility.");
+            }
+            return;
         }
 
         toolkit.addAWTEventListener(globalListener,
