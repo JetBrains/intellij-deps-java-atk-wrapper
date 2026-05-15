@@ -203,6 +203,22 @@ AC_SUBST(PROPERTIESDIR)
 JAW_JAR_NAME=java-atk-wrapper.jar
 AC_SUBST(JAW_JAR_NAME)
 
+BUNDLED_NATIVE_LIBRARY_NAME=libatk-wrapper.so
+case "$host_os" in
+  linux*)
+    case "$host_cpu" in
+      aarch64)
+        BUNDLED_NATIVE_LIBRARY_NAME=libatk-wrapper-aarch64.so
+        ;;
+      x86_64)
+        BUNDLED_NATIVE_LIBRARY_NAME=libatk-wrapper-x86_64.so
+        ;;
+    esac
+    ;;
+esac
+
+AC_SUBST(BUNDLED_NATIVE_LIBRARY_NAME)
+
 AC_CONFIG_FILES([
     Makefile
     jni/Makefile
@@ -227,6 +243,8 @@ Build configuration:
        JDK src:                                ${JDK_SRC}
        JAVA home:                              ${JAVA_HOME}
        Host OS:                                ${host_os}
+       Host CPU:                               ${host_cpu}
+       Native library resource:                ${BUNDLED_NATIVE_LIBRARY_NAME}
        JNI includes:                           ${JNI_INCLUDES}
        Warn flags:                             ${WARN_CFLAGS}
 "

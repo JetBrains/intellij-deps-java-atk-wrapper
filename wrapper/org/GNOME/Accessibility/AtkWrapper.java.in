@@ -372,8 +372,24 @@ public class AtkWrapper {
         }
     };
 
+    private static String getBundledNativeLibraryResourcePath() {
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String osArch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+
+        if (osName.contains("linux")) {
+            if (osArch.equals("aarch64") || osArch.equals("arm64")) {
+                return "/libatk-wrapper-aarch64.so";
+            }
+            if (osArch.equals("x86_64") || osArch.equals("amd64") || osArch.equals("x64")) {
+                return "/libatk-wrapper-x86_64.so";
+            }
+        }
+
+        return "/libatk-wrapper.so";
+    }
+
     private static void loadNativeLibraryFromResources() throws IOException {
-        String resourcePath = "/libatk-wrapper.so";
+        String resourcePath = getBundledNativeLibraryResourcePath();
 
         try (InputStream in = AtkWrapper.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
