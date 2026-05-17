@@ -24,6 +24,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
 import java.io.*;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -31,6 +32,7 @@ import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
 import javax.swing.JTree;
+import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +43,7 @@ import java.util.logging.Logger;
 public class AtkWrapper {
     private static final Logger log = Logger.getLogger("org.GNOME.Accessibility.AtkWrapper");
     private static final long ACCESSIBILITY_PROCESS_TIMEOUT_SECONDS = 5;
+    private static final int MAX_RETAINED_TREE_CONTEXTS = 512;
     private static boolean accessibilityEnabled = false;
     private static boolean nativeLibraryInited = false;
     // Previously focused accessible context
@@ -50,21 +53,82 @@ public class AtkWrapper {
     // Previously focused JRootPane's AccessibleContext
     private static AccessibleContext oldPaneContext = null;
 
+    private static final Map<AccessibleContext, WeakReference<JTree>> treesByAccessibleContext =
+            Collections.synchronizedMap(new WeakHashMap<AccessibleContext, WeakReference<JTree>>());
+
+    private static final Map<JTree, LinkedHashMap<TreePath, AccessibleContext>> treeContextCaches =
+            Collections.synchronizedMap(
+                    new WeakHashMap<JTree, LinkedHashMap<TreePath, AccessibleContext>>());
+
+    private static LinkedHashMap<TreePath, AccessibleContext> createTreeContextCache() {
+        return new LinkedHashMap<TreePath, AccessibleContext>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<TreePath, AccessibleContext> eldest) {
+                return size() > MAX_RETAINED_TREE_CONTEXTS;
+            }
+        };
+    }
+
+    private static void rememberJTree(JTree tree, AccessibleContext treeAccContext) {
+        if (tree == null || treeAccContext == null) {
+            return;
+        }
+        treesByAccessibleContext.put(treeAccContext, new WeakReference<JTree>(tree));
+    }
+
+    private static JTree getRememberedJTree(AccessibleContext treeAccContext) {
+        if (treeAccContext == null) {
+            return null;
+        }
+        WeakReference<JTree> treeRef = treesByAccessibleContext.get(treeAccContext);
+        return treeRef == null ? null : treeRef.get();
+    }
+
+    private static LinkedHashMap<TreePath, AccessibleContext> getTreeContextCache(JTree tree) {
+        synchronized (treeContextCaches) {
+            LinkedHashMap<TreePath, AccessibleContext> cache = treeContextCaches.get(tree);
+            if (cache == null) {
+                cache = createTreeContextCache();
+                treeContextCaches.put(tree, cache);
+            }
+            return cache;
+        }
+    }
+
+    private static AccessibleContext getCachedTreeContext(JTree tree, TreePath path) {
+        if (tree == null || path == null) {
+            return null;
+        }
+
+        LinkedHashMap<TreePath, AccessibleContext> cache = getTreeContextCache(tree);
+        synchronized (cache) {
+            return cache.get(path);
+        }
+    }
+
+    private static void cacheTreeContext(JTree tree, TreePath path, AccessibleContext context) {
+        if (tree == null || path == null || context == null) {
+            return;
+        }
+
+        LinkedHashMap<TreePath, AccessibleContext> cache = getTreeContextCache(tree);
+        synchronized (cache) {
+            cache.put(path, context);
+        }
+
+        AtkWrapperDisposer.getInstance().addRecord(context);
+    }
+
     private static void emitJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
         if (tree == null || treeAccContext == null) {
             return;
         }
 
+        rememberJTree(tree, treeAccContext);
+
         AccessibleContext childAccContext = resolveJTreeActiveDescendant(tree, treeAccContext);
-        if (childAccContext == null) {
-            return;
-        }
 
-        AtkWrapperDisposer.getInstance().addRecord(childAccContext);
-
-        Object[] args = new Object[1];
-        args[0] = childAccContext;
-        emitSignal(treeAccContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+        emitActiveDescendantChanged(treeAccContext, childAccContext);
     }
 
     private static AccessibleContext resolveJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
@@ -89,16 +153,74 @@ public class AtkWrapper {
             return null;
         }
 
-        Rectangle bounds = tree.getPathBounds(selectionPath);
-        AccessibleComponent treeComponent = treeAccContext.getAccessibleComponent();
-        if (bounds != null && treeComponent != null) {
-            Accessible node = treeComponent.getAccessibleAt(new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
-            if (node != null) {
-                return node.getAccessibleContext();
-            }
+        AccessibleContext cachedContext = getCachedTreeContext(tree, selectionPath);
+        if (cachedContext != null) {
+            AtkWrapperDisposer.getInstance().addRecord(cachedContext);
+            return cachedContext;
         }
 
-        return null;
+        TreeModel model = tree.getModel();
+        if (model == null) {
+            return null;
+        }
+
+        Object[] nodes = selectionPath.getPath();
+        if (nodes.length == 0) {
+            return null;
+        }
+
+        AccessibleContext current = treeAccContext;
+        int start = tree.isRootVisible() ? 0 : 1;
+
+        for (int pathIndex = start; pathIndex < nodes.length; pathIndex++) {
+            TreePath prefixPath = new TreePath(Arrays.copyOf(nodes, pathIndex + 1));
+            AccessibleContext cachedPrefix = getCachedTreeContext(tree, prefixPath);
+            if (cachedPrefix != null) {
+                current = cachedPrefix;
+                AtkWrapperDisposer.getInstance().addRecord(current);
+                continue;
+            }
+
+            int childIndex;
+            if (pathIndex == 0) {
+                childIndex = 0;
+            } else {
+                childIndex = model.getIndexOfChild(nodes[pathIndex - 1], nodes[pathIndex]);
+            }
+
+            if (childIndex < 0) {
+                return null;
+            }
+
+            Accessible child = current.getAccessibleChild(childIndex);
+            if (child == null) {
+                return null;
+            }
+
+            AccessibleContext childContext = child.getAccessibleContext();
+            if (childContext == null) {
+                return null;
+            }
+
+            current = childContext;
+            cacheTreeContext(tree, prefixPath, current);
+        }
+
+        return current;
+    }
+
+    private static void emitActiveDescendantChanged(
+            AccessibleContext sourceContext,
+            AccessibleContext childContext) {
+
+        if (sourceContext == null || childContext == null) {
+            return;
+        }
+
+        AtkWrapperDisposer.getInstance().addRecord(sourceContext);
+        AtkWrapperDisposer.getInstance().addRecord(childContext);
+
+        emitSignal(sourceContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, new Object[] { childContext });
     }
 
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
@@ -229,22 +351,25 @@ public class AtkWrapper {
                     emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_REMOVE, args);
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY)) {
-                AccessibleContext child_ac;
-                if (newValue instanceof Accessible accessible) {
-                    child_ac = accessible.getAccessibleContext();
-                } else {
+                if (ac.getAccessibleRole() == AccessibleRole.TREE) {
+                    JTree tree = getRememberedJTree(ac);
+                    emitJTreeActiveDescendant(tree, ac);
                     return;
                 }
+
+                AccessibleContext child_ac = null;
+                if (newValue instanceof AccessibleContext accessibleContext) {
+                    child_ac = accessibleContext;
+                }
+                if (newValue instanceof Accessible accessible) {
+                    child_ac = accessible.getAccessibleContext();
+                }
+
                 if (child_ac == null) {
                     return;
                 }
 
-                Object[] args = new Object[1];
-                args[0] = child_ac;
-
-                AtkWrapperDisposer.getInstance().addRecord(child_ac);
-
-                emitSignal(ac, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, args);
+                emitActiveDescendantChanged(ac, child_ac);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY)) {
                 boolean isTextEvent = false;
                 AccessibleRole role = ac.getAccessibleRole();
@@ -780,6 +905,9 @@ public class AtkWrapper {
                 }
             }
             if (eventSourceContext != null) {
+                if (eventSource instanceof JTree tree) {
+                    rememberJTree(tree, eventSourceContext);
+                }
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
                 focusNotify(eventSourceContext);
             }
