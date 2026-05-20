@@ -38,7 +38,7 @@ PKG_CHECK_MODULES(JAW, [
   gobject-2.0 >= req_ver_glib
 ])
 
-LIB_ATK_WRAPPER_LD_FLAGS="-avoid-version -no-undefined"
+LIB_ATK_WRAPPER_LD_FLAGS="-avoid-version -no-undefined -Wl,-z,now"
 AC_SUBST(LIB_ATK_WRAPPER_LD_FLAGS)
 
 AC_ARG_ENABLE([modular-jar],
