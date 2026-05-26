@@ -565,15 +565,24 @@ public class AtkText {
      *
      * @param accessibleText the AccessibleText to extract text from
      * @return the full text content as a String (never null, but may be empty)
-     * <p>
-     * TODO: This can be slow depending on the Accessible implementation (potentially O(n2) if getAtIndex is expensive).
-     * Possible optimizations (if performance becomes an issue):
-     * - If AccessibleExtendedText is available, prefer getTextRange(0, end) for full extraction.
-     * - Cache textContent within a single JNI call if multiple operations need it (right now each method
-     *   recomputes it, which is fine for correctness but may be heavy).
      */
     private String extractText(AccessibleText accessibleText) {
+        if (accessibleText == null) {
+            return "";
+        }
+
         int charCount = accessibleText.getCharCount();
+        if (charCount <= 0) {
+            return "";
+        }
+
+        if (accessibleText instanceof AccessibleExtendedText accessibleExtendedText) {
+            String text = accessibleExtendedText.getTextRange(0, charCount);
+            if (text != null) {
+                return text;
+            }
+        }
+
         StringBuilder sb = new StringBuilder(charCount);
 
         for (int i = 0; i < charCount; i++) {
