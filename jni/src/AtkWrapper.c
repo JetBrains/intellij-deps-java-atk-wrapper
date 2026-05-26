@@ -63,24 +63,6 @@ static GMainLoop *jaw_main_loop;
 static GMainContext *jaw_main_context;
 static GThread *jaw_loop_thread = NULL;
 
-typedef void (*AtkBridgeSetEventContextFunc)(GMainContext *context);
-static AtkBridgeSetEventContextFunc jaw_atk_bridge_set_event_context = NULL;
-
-static AtkBridgeSetEventContextFunc
-lookup_atk_bridge_set_event_context(void) {
-    GModule *self;
-    gpointer sym = NULL;
-
-    self = g_module_open(NULL, 0);
-    if (self == NULL)
-        return NULL;
-
-    if (!g_module_symbol(self, "atk_bridge_set_event_context", &sym))
-        return NULL;
-
-    return (AtkBridgeSetEventContextFunc)sym;
-}
-
 /*
  * True -- main loop should continue running.
  * False -- shutdown requested.
@@ -137,10 +119,7 @@ static void jaw_cleanup_common(JNIEnv *jniEnv) {
     }
 
     if (jaw_main_context != NULL) {
-        if (jaw_atk_bridge_set_event_context != NULL) {
-            jaw_atk_bridge_set_event_context(NULL);
-            jaw_atk_bridge_set_event_context = NULL;
-        }
+        atk_bridge_set_event_context(NULL);
         g_main_context_unref(jaw_main_context);
         jaw_main_context = NULL;
         g_debug("%s: Main context unref'd", G_STRFUNC);
@@ -275,15 +254,10 @@ Java_org_GNOME_Accessibility_AtkWrapper_loadAtkBridge(JNIEnv *env,
         return JNI_FALSE;
     }
 
-    jaw_atk_bridge_set_event_context = lookup_atk_bridge_set_event_context();
-    if (jaw_atk_bridge_set_event_context != NULL) {
-        jaw_main_context = g_main_context_new();
-        jaw_main_loop =
-            g_main_loop_new(jaw_main_context, FALSE); /*main loop NOT running*/
-        jaw_atk_bridge_set_event_context(jaw_main_context);
-    } else {
-        jaw_main_loop = g_main_loop_new(NULL, FALSE);
-    }
+    jaw_main_context = g_main_context_new();
+    jaw_main_loop =
+        g_main_loop_new(jaw_main_context, FALSE); /*main loop NOT running*/
+    atk_bridge_set_event_context(jaw_main_context);
 
     atomic_flag_test_and_set_explicit(&jaw_loop_running, memory_order_release);
 
