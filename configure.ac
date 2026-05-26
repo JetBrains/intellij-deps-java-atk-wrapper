@@ -24,7 +24,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 m4_define([req_ver_atk], [2.28.0])
 m4_define([req_ver_atk_bridge], [2.26.0])
-m4_define([req_ver_atspi], [2.28.0])
+m4_define([req_ver_atspi], [2.33.1])
 m4_define([req_ver_glib], [2.56.0])
 
 PKG_CHECK_MODULES(JAW, [
