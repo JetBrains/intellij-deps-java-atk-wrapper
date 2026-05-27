@@ -114,15 +114,29 @@ public class AtkWrapperDisposer implements Runnable {
         if (ac == null) {
             return;
         }
+
+        synchronized (lock) {
+            if (weakHashMap.containsKey(ac)) {
+                return;
+            }
+        }
+
+        long nativeReference = AtkWrapper.createNativeResources(ac);
+        if (nativeReference == -1) {
+            return;
+        }
+
         synchronized (lock) {
             if (!weakHashMap.containsKey(ac)) {
-                long nativeReference = AtkWrapper.createNativeResources(ac);
-                if (nativeReference != -1) {
-                    PhantomReference<AccessibleContext> phantomReference = new PhantomReference<>(ac, queue);
-                    phantomMap.put(phantomReference, nativeReference);
-                    weakHashMap.put(ac, nativeReference);
-                }
+                PhantomReference<AccessibleContext> phantomReference = new PhantomReference<>(ac, queue);
+                phantomMap.put(phantomReference, nativeReference);
+                weakHashMap.put(ac, nativeReference);
+                nativeReference = -1;
             }
+        }
+
+        if (nativeReference != -1) {
+            AtkWrapper.releaseNativeResources(nativeReference);
         }
     }
 
