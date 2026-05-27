@@ -31,6 +31,7 @@ import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
 import javax.swing.JTree;
+import javax.swing.SwingUtilities;
 import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -104,6 +105,14 @@ public class AtkWrapper {
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
 
         public void propertyChange(PropertyChangeEvent e) {
+            if (e == null) {
+                return;
+            }
+
+            AtkUtil.invokeInSwing(() -> propertyChangeOnEDT(e));
+        }
+
+        private void propertyChangeOnEDT(PropertyChangeEvent e) {
             Object o = e.getSource();
             AccessibleContext ac;
             if (o instanceof AccessibleContext accessibleContext) {
@@ -620,6 +629,14 @@ public class AtkWrapper {
     };
     private final AWTEventListener globalListener = new AWTEventListener() {
         public void eventDispatched(AWTEvent e) {
+            if (e == null) {
+                return;
+            }
+
+            AtkUtil.invokeInSwing(() -> eventDispatchedOnEDT(e));
+        }
+
+        private void eventDispatchedOnEDT(AWTEvent e) {
             if (e instanceof WindowEvent windowEvent) {
                 switch (e.getID()) {
                     case WindowEvent.WINDOW_OPENED:
