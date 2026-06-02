@@ -41,6 +41,70 @@ static AtkObject *jaw_util_get_root(void);
 static const gchar *jaw_util_get_toolkit_name(void);
 static const gchar *jaw_util_get_toolkit_version(void);
 
+#define JAW_ACCESSIBLE_ROLE_CONSTANTS(X)                                       \
+    X(ALERT)                                                                   \
+    X(AWT_COMPONENT)                                                           \
+    X(CANVAS)                                                                  \
+    X(CHECK_BOX)                                                               \
+    X(COLOR_CHOOSER)                                                           \
+    X(COLUMN_HEADER)                                                           \
+    X(COMBO_BOX)                                                               \
+    X(DATE_EDITOR)                                                             \
+    X(DESKTOP_ICON)                                                            \
+    X(DESKTOP_PANE)                                                            \
+    X(DIALOG)                                                                  \
+    X(DIRECTORY_PANE)                                                          \
+    X(EDITBAR)                                                                 \
+    X(FILE_CHOOSER)                                                            \
+    X(FILLER)                                                                  \
+    X(FONT_CHOOSER)                                                            \
+    X(FOOTER)                                                                  \
+    X(FRAME)                                                                   \
+    X(GLASS_PANE)                                                              \
+    X(GROUP_BOX)                                                               \
+    X(HEADER)                                                                  \
+    X(HTML_CONTAINER)                                                          \
+    X(HYPERLINK)                                                               \
+    X(ICON)                                                                    \
+    X(INTERNAL_FRAME)                                                          \
+    X(LABEL)                                                                   \
+    X(LAYERED_PANE)                                                            \
+    X(LIST)                                                                    \
+    X(LIST_ITEM)                                                               \
+    X(MENU)                                                                    \
+    X(MENU_BAR)                                                                \
+    X(MENU_ITEM)                                                               \
+    X(OPTION_PANE)                                                             \
+    X(PAGE_TAB)                                                                \
+    X(PAGE_TAB_LIST)                                                           \
+    X(PANEL)                                                                   \
+    X(PARAGRAPH)                                                               \
+    X(PASSWORD_TEXT)                                                           \
+    X(POPUP_MENU)                                                              \
+    X(PROGRESS_BAR)                                                            \
+    X(PUSH_BUTTON)                                                             \
+    X(RADIO_BUTTON)                                                            \
+    X(ROOT_PANE)                                                               \
+    X(ROW_HEADER)                                                              \
+    X(RULER)                                                                   \
+    X(SCROLL_BAR)                                                              \
+    X(SCROLL_PANE)                                                             \
+    X(SEPARATOR)                                                               \
+    X(SLIDER)                                                                  \
+    X(SPIN_BOX)                                                                \
+    X(SPLIT_PANE)                                                              \
+    X(STATUS_BAR)                                                              \
+    X(SWING_COMPONENT)                                                         \
+    X(TABLE)                                                                   \
+    X(TEXT)                                                                    \
+    X(TOGGLE_BUTTON)                                                           \
+    X(TOOL_BAR)                                                                \
+    X(TOOL_TIP)                                                                \
+    X(TREE)                                                                    \
+    X(UNKNOWN)                                                                 \
+    X(VIEWPORT)                                                                \
+    X(WINDOW)
+
 static JavaVM *cachedJVM = NULL;
 
 static jclass cachedUtilAtkObjectClass = NULL;
@@ -55,10 +119,20 @@ static jfieldID cachedUtilRectangleYField = NULL;
 static jfieldID cachedUtilRectangleWidthField = NULL;
 static jfieldID cachedUtilRectangleHeightField = NULL;
 
+#define DECLARE_ACCESSIBLE_ROLE_GLOBAL(role_name)                              \
+    static jobject cachedAccessibleRole_##role_name = NULL;
+JAW_ACCESSIBLE_ROLE_CONSTANTS(DECLARE_ACCESSIBLE_ROLE_GLOBAL)
+#undef DECLARE_ACCESSIBLE_ROLE_GLOBAL
+
+#define ROLE_IS(env, role, role_name)                                          \
+    jaw_util_is_accessible_role(env, role, cachedAccessibleRole_##role_name)
+
 static GMutex cache_mutex;
 static gboolean jawutil_cache_initialized = FALSE;
 
 static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv);
+static gboolean jaw_util_cache_accessible_role(JNIEnv *jniEnv, const gchar *roleName, jobject *cachedRole);
+static void jaw_util_clear_accessible_role_cache(JNIEnv *jniEnv);
 
 typedef struct _JawKeyListenerInfo {
     AtkKeySnoopFunc listener;
@@ -389,70 +463,13 @@ void jaw_util_detach(void) {
     (*jvm)->DetachCurrentThread(jvm);
 }
 
-/**
- * Explicitly manages a JNI local reference frame using
- * PushLocalFrame/PopLocalFrame; all local references are released
- * before the function returns.
- */
-static jobject jaw_util_get_java_acc_role(JNIEnv *jniEnv,
-                                          const gchar *roleName) {
-    JAW_DEBUG("%p, %s", jniEnv, roleName);
-
-    if (jniEnv == NULL || roleName == NULL) {
-        g_debug("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
-                  G_STRFUNC, (void *)jniEnv, (void *)roleName);
-        return NULL;
-    }
-
-    if (!jawutil_init_jni_cache(jniEnv)) {
-        g_debug("%s: Failed to initialize JNI cache", G_STRFUNC);
-        return NULL;
-    }
-
-    if ((*jniEnv)->PushLocalFrame(jniEnv, JAW_DEFAULT_LOCAL_FRAME_SIZE) < 0) {
-        g_debug("%s: Failed to create a new local reference frame",
-                  G_STRFUNC);
-        return NULL;
-    }
-
-    jfieldID jfid = (*jniEnv)->GetStaticFieldID(
-        jniEnv, cachedUtilAccessibleRoleClass, roleName,
-        "Ljavax/accessibility/AccessibleRole;");
-    if (jfid == NULL) {
-        g_debug("%s: Failed to find field %s in AccessibleRole class",
-                  G_STRFUNC, roleName);
-        (*jniEnv)->PopLocalFrame(jniEnv, NULL);
-        return NULL;
-    }
-    jobject jrole = (*jniEnv)->GetStaticObjectField(
-        jniEnv, cachedUtilAccessibleRoleClass, jfid);
-
-    return (*jniEnv)->PopLocalFrame(jniEnv, jrole);
-}
-
-static gboolean jaw_util_is_java_acc_role(JNIEnv *jniEnv, jobject acc_role,
-                                          const gchar *roleName) {
-    JAW_DEBUG("%p, %p, %s", jniEnv, acc_role, roleName);
-
-    if (jniEnv == NULL || roleName == NULL) {
-        g_debug("%s: Null argument passed (jniEnv=%p, roleName_ptr=%p)",
-                  G_STRFUNC, (void *)jniEnv, (void *)roleName);
-        return FALSE;
-    }
-
-    jobject jrole = jaw_util_get_java_acc_role(jniEnv, roleName);
-
-    if ((*jniEnv)->IsSameObject(jniEnv, acc_role, jrole)) {
-        return TRUE;
-    } else {
-        return FALSE;
-    }
+static gboolean jaw_util_is_accessible_role(JNIEnv *env, jobject role, jobject expected_role) {
+    return env != NULL && role != NULL && expected_role != NULL && (*env)->IsSameObject(env, role, expected_role);
 }
 
 static gboolean jaw_util_is_generic_role(JNIEnv *jniEnv, jobject role) {
-    return jaw_util_is_java_acc_role(jniEnv, role, "LABEL") ||
-           jaw_util_is_java_acc_role(jniEnv, role, "PANEL") ||
-           jaw_util_is_java_acc_role(jniEnv, role, "UNKNOWN");
+    return ROLE_IS(jniEnv, role, LABEL) || ROLE_IS(jniEnv, role, PANEL) ||
+           ROLE_IS(jniEnv, role, UNKNOWN);
 }
 
 static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
@@ -470,8 +487,7 @@ static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
     jobject parent_role = (*jniEnv)->CallStaticObjectMethod(
         jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
         parent);
-    gboolean result = parent_role != NULL &&
-                      jaw_util_is_java_acc_role(jniEnv, parent_role, "LIST");
+    gboolean result = ROLE_IS(jniEnv, parent_role, LIST);
     (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
     (*jniEnv)->DeleteLocalRef(jniEnv, parent);
     return result;
@@ -504,7 +520,7 @@ static gboolean jaw_util_is_tree_item(JNIEnv *jniEnv,
             }
             return FALSE;
         }
-        if (jaw_util_is_java_acc_role(jniEnv, parent_role, "TREE")) {
+        if (ROLE_IS(jniEnv, parent_role, TREE)) {
             (*jniEnv)->DeleteLocalRef(jniEnv, parent_role);
             (*jniEnv)->DeleteLocalRef(jniEnv, parent);
             if (current != jAccessibleContext) {
@@ -587,89 +603,89 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
     if (!(*jniEnv)->IsInstanceOf(jniEnv, ac_role,
                                  cachedUtilAccessibleRoleClass)) {
         result = ATK_ROLE_INVALID;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "ALERT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, ALERT)) {
         result = ATK_ROLE_ALERT;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "AWT_COMPONENT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, AWT_COMPONENT)) {
         result = ATK_ROLE_UNKNOWN;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "CANVAS")) {
+    } else if (ROLE_IS(jniEnv, ac_role, CANVAS)) {
         result = ATK_ROLE_CANVAS;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "CHECK_BOX")) {
+    } else if (ROLE_IS(jniEnv, ac_role, CHECK_BOX)) {
         result = ATK_ROLE_CHECK_BOX;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "COLOR_CHOOSER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, COLOR_CHOOSER)) {
         result = ATK_ROLE_COLOR_CHOOSER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "COLUMN_HEADER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, COLUMN_HEADER)) {
         result = ATK_ROLE_COLUMN_HEADER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "COMBO_BOX")) {
+    } else if (ROLE_IS(jniEnv, ac_role, COMBO_BOX)) {
         result = ATK_ROLE_COMBO_BOX;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "DATE_EDITOR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, DATE_EDITOR)) {
         result = ATK_ROLE_DATE_EDITOR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "DESKTOP_ICON")) {
+    } else if (ROLE_IS(jniEnv, ac_role, DESKTOP_ICON)) {
         result = ATK_ROLE_DESKTOP_ICON;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "DESKTOP_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, DESKTOP_PANE)) {
         result = ATK_ROLE_DESKTOP_FRAME;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "DIALOG")) {
+    } else if (ROLE_IS(jniEnv, ac_role, DIALOG)) {
         result = ATK_ROLE_DIALOG;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "DIRECTORY_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, DIRECTORY_PANE)) {
         result = ATK_ROLE_DIRECTORY_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "EDITBAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, EDITBAR)) {
         result = ATK_ROLE_EDITBAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "FILE_CHOOSER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, FILE_CHOOSER)) {
         result = ATK_ROLE_FILE_CHOOSER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "FILLER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, FILLER)) {
         result = ATK_ROLE_FILLER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "FONT_CHOOSER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, FONT_CHOOSER)) {
         result = ATK_ROLE_FONT_CHOOSER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "FOOTER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, FOOTER)) {
         result = ATK_ROLE_FOOTER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "FRAME")) {
+    } else if (ROLE_IS(jniEnv, ac_role, FRAME)) {
         result = ATK_ROLE_FRAME;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "GLASS_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, GLASS_PANE)) {
         result = ATK_ROLE_GLASS_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "GROUP_BOX")) {
+    } else if (ROLE_IS(jniEnv, ac_role, GROUP_BOX)) {
         result = ATK_ROLE_PANEL;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "HEADER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, HEADER)) {
         result = ATK_ROLE_HEADER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "HTML_CONTAINER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, HTML_CONTAINER)) {
         result = ATK_ROLE_HTML_CONTAINER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "HYPERLINK")) {
+    } else if (ROLE_IS(jniEnv, ac_role, HYPERLINK)) {
         result = ATK_ROLE_LINK;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "ICON")) {
+    } else if (ROLE_IS(jniEnv, ac_role, ICON)) {
         result = ATK_ROLE_ICON;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "INTERNAL_FRAME")) {
+    } else if (ROLE_IS(jniEnv, ac_role, INTERNAL_FRAME)) {
         result = ATK_ROLE_INTERNAL_FRAME;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LABEL")) {
+    } else if (ROLE_IS(jniEnv, ac_role, LABEL)) {
         result = ATK_ROLE_LABEL;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LAYERED_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, LAYERED_PANE)) {
         result = ATK_ROLE_UNKNOWN;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LIST")) {
+    } else if (ROLE_IS(jniEnv, ac_role, LIST)) {
         result = ATK_ROLE_LIST;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "LIST_ITEM")) {
+    } else if (ROLE_IS(jniEnv, ac_role, LIST_ITEM)) {
         result = ATK_ROLE_LIST_ITEM;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "MENU")) {
+    } else if (ROLE_IS(jniEnv, ac_role, MENU)) {
         result = ATK_ROLE_MENU;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "MENU_BAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, MENU_BAR)) {
         result = ATK_ROLE_MENU_BAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "MENU_ITEM")) {
+    } else if (ROLE_IS(jniEnv, ac_role, MENU_ITEM)) {
         result = ATK_ROLE_MENU_ITEM;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "OPTION_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, OPTION_PANE)) {
         result = ATK_ROLE_OPTION_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PAGE_TAB")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PAGE_TAB)) {
         result = ATK_ROLE_PAGE_TAB;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PAGE_TAB_LIST")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PAGE_TAB_LIST)) {
         result = ATK_ROLE_PAGE_TAB_LIST;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PANEL")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PANEL)) {
         result = ATK_ROLE_PANEL;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PARAGRAPH")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PARAGRAPH)) {
         result = ATK_ROLE_PARAGRAPH;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PASSWORD_TEXT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PASSWORD_TEXT)) {
         result = ATK_ROLE_PASSWORD_TEXT;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "POPUP_MENU")) {
+    } else if (ROLE_IS(jniEnv, ac_role, POPUP_MENU)) {
         result = ATK_ROLE_POPUP_MENU;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PROGRESS_BAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PROGRESS_BAR)) {
         result = ATK_ROLE_PROGRESS_BAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "PUSH_BUTTON")) {
+    } else if (ROLE_IS(jniEnv, ac_role, PUSH_BUTTON)) {
         result = ATK_ROLE_PUSH_BUTTON;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "RADIO_BUTTON")) {
+    } else if (ROLE_IS(jniEnv, ac_role, RADIO_BUTTON)) {
         jobject jparent = (*jniEnv)->CallStaticObjectMethod(
             jniEnv, cachedUtilAtkObjectClass,
             cachedUtilGetAccessibleParentMethod, jAccessibleContext);
@@ -687,47 +703,47 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
                     "%s: Failed to get parent role using get_accessible_role",
                     G_STRFUNC);
                 result = ATK_ROLE_RADIO_BUTTON;
-            } else if (jaw_util_is_java_acc_role(jniEnv, parent_role, "MENU")) {
+            } else if (ROLE_IS(jniEnv, parent_role, MENU)) {
                 result = ATK_ROLE_RADIO_MENU_ITEM;
             } else {
                 result = ATK_ROLE_RADIO_BUTTON;
             }
         }
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "ROOT_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, ROOT_PANE)) {
         result = ATK_ROLE_ROOT_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "ROW_HEADER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, ROW_HEADER)) {
         result = ATK_ROLE_ROW_HEADER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "RULER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, RULER)) {
         result = ATK_ROLE_RULER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SCROLL_BAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SCROLL_BAR)) {
         result = ATK_ROLE_SCROLL_BAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SCROLL_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SCROLL_PANE)) {
         result = ATK_ROLE_SCROLL_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SEPARATOR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SEPARATOR)) {
         result = ATK_ROLE_SEPARATOR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SLIDER")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SLIDER)) {
         result = ATK_ROLE_SLIDER;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SPIN_BOX")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SPIN_BOX)) {
         result = ATK_ROLE_SPIN_BUTTON;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SPLIT_PANE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SPLIT_PANE)) {
         result = ATK_ROLE_SPLIT_PANE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "STATUS_BAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, STATUS_BAR)) {
         result = ATK_ROLE_STATUSBAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "SWING_COMPONENT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, SWING_COMPONENT)) {
         result = ATK_ROLE_UNKNOWN;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TABLE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TABLE)) {
         result = ATK_ROLE_TABLE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TEXT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TEXT)) {
         result = ATK_ROLE_TEXT;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TOGGLE_BUTTON")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TOGGLE_BUTTON)) {
         result = ATK_ROLE_TOGGLE_BUTTON;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TOOL_BAR")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TOOL_BAR)) {
         result = ATK_ROLE_TOOL_BAR;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TOOL_TIP")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TOOL_TIP)) {
         result = ATK_ROLE_TOOL_TIP;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "TREE")) {
+    } else if (ROLE_IS(jniEnv, ac_role, TREE)) {
         result = ATK_ROLE_TREE;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "UNKNOWN")) {
+    } else if (ROLE_IS(jniEnv, ac_role, UNKNOWN)) {
         jobject jparent = (*jniEnv)->CallStaticObjectMethod(
             jniEnv, cachedUtilAtkObjectClass,
             cachedUtilGetAccessibleParentMethod, jAccessibleContext);
@@ -736,9 +752,9 @@ jaw_util_get_atk_role_from_AccessibleContext(jobject jAccessibleContext) {
         } else {
             result = ATK_ROLE_UNKNOWN;
         }
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "VIEWPORT")) {
+    } else if (ROLE_IS(jniEnv, ac_role, VIEWPORT)) {
         result = ATK_ROLE_VIEWPORT;
-    } else if (jaw_util_is_java_acc_role(jniEnv, ac_role, "WINDOW")) {
+    } else if (ROLE_IS(jniEnv, ac_role, WINDOW)) {
         result = ATK_ROLE_WINDOW;
     }
 
@@ -1056,6 +1072,14 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
         goto cleanup_and_fail;
     }
 
+#define CACHE_ACCESSIBLE_ROLE(role_name)                                       \
+    if (!jaw_util_cache_accessible_role(jniEnv, #role_name,                    \
+                                        &cachedAccessibleRole_##role_name)) {  \
+        goto cleanup_and_fail;                                                 \
+    }
+    JAW_ACCESSIBLE_ROLE_CONSTANTS(CACHE_ACCESSIBLE_ROLE)
+#undef CACHE_ACCESSIBLE_ROLE
+
     localAccessibleState =
         (*jniEnv)->FindClass(jniEnv, "javax/accessibility/AccessibleState");
     if ((*jniEnv)->ExceptionCheck(jniEnv) || localAccessibleState == NULL) {
@@ -1137,6 +1161,7 @@ static gboolean jawutil_init_jni_cache(JNIEnv *jniEnv) {
     return TRUE;
 
 cleanup_and_fail:
+    jaw_util_clear_accessible_role_cache(jniEnv);
     if (cachedUtilAtkObjectClass != NULL) {
         (*jniEnv)->DeleteGlobalRef(jniEnv, cachedUtilAtkObjectClass);
         cachedUtilAtkObjectClass = NULL;
@@ -1165,6 +1190,57 @@ cleanup_and_fail:
     return FALSE;
 }
 
+static gboolean jaw_util_cache_accessible_role(JNIEnv *jniEnv,
+                                               const gchar *roleName,
+                                               jobject *cachedRole) {
+    if (jniEnv == NULL || roleName == NULL || cachedRole == NULL) {
+        g_debug("%s: Null argument passed (jniEnv=%p, roleName=%p, cachedRole=%p)",
+                  G_STRFUNC, (void *)jniEnv, (void *)roleName,
+                  (void *)cachedRole);
+        return FALSE;
+    }
+
+    jfieldID roleField = (*jniEnv)->GetStaticFieldID(
+        jniEnv, cachedUtilAccessibleRoleClass, roleName,
+        "Ljavax/accessibility/AccessibleRole;");
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || roleField == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_debug("%s: Failed to find field %s in AccessibleRole class",
+                  G_STRFUNC, roleName);
+        return FALSE;
+    }
+
+    jobject localRole = (*jniEnv)->GetStaticObjectField(
+        jniEnv, cachedUtilAccessibleRoleClass, roleField);
+    if ((*jniEnv)->ExceptionCheck(jniEnv) || localRole == NULL) {
+        jaw_jni_clear_exception(jniEnv);
+        g_debug("%s: Failed to get field %s from AccessibleRole class",
+                  G_STRFUNC, roleName);
+        return FALSE;
+    }
+
+    *cachedRole = (*jniEnv)->NewGlobalRef(jniEnv, localRole);
+    (*jniEnv)->DeleteLocalRef(jniEnv, localRole);
+
+    if (*cachedRole == NULL) {
+        g_debug("%s: Failed to create global reference for AccessibleRole.%s",
+                  G_STRFUNC, roleName);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void jaw_util_clear_accessible_role_cache(JNIEnv *jniEnv) {
+#define CLEAR_ACCESSIBLE_ROLE(role_name)                                       \
+    if (cachedAccessibleRole_##role_name != NULL) {                            \
+        (*jniEnv)->DeleteGlobalRef(jniEnv, cachedAccessibleRole_##role_name);  \
+        cachedAccessibleRole_##role_name = NULL;                               \
+    }
+    JAW_ACCESSIBLE_ROLE_CONSTANTS(CLEAR_ACCESSIBLE_ROLE)
+#undef CLEAR_ACCESSIBLE_ROLE
+}
+
 void jaw_util_cache_cleanup(JNIEnv *jniEnv) {
     JAW_DEBUG("JNIEnv: %p", jniEnv);
 
@@ -1175,6 +1251,7 @@ void jaw_util_cache_cleanup(JNIEnv *jniEnv) {
 
     g_mutex_lock(&cache_mutex);
 
+    jaw_util_clear_accessible_role_cache(jniEnv);
     if (cachedUtilAtkObjectClass != NULL) {
         (*jniEnv)->DeleteGlobalRef(jniEnv, cachedUtilAtkObjectClass);
         cachedUtilAtkObjectClass = NULL;
