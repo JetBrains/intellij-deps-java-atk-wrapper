@@ -20,6 +20,7 @@
 
 package org.GNOME.Accessibility;
 
+import java.lang.ref.WeakReference;
 import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
@@ -45,11 +46,19 @@ public class AtkWrapper {
     private static boolean accessibilityEnabled = false;
     private static boolean nativeLibraryInited = false;
     // Previously focused accessible context
-    private static AccessibleContext oldSourceContext = null;
+    private static WeakReference<AccessibleContext> oldSourceContextRef = null;
     // Last saved focused accessible context (excluding JRootPane)
-    private static AccessibleContext savedSourceContext = null;
+    private static WeakReference<AccessibleContext> savedSourceContextRef = null;
     // Previously focused JRootPane's AccessibleContext
-    private static AccessibleContext oldPaneContext = null;
+    private static WeakReference<AccessibleContext> oldPaneContextRef = null;
+
+    private static AccessibleContext dereference(WeakReference<AccessibleContext> reference) {
+        return reference == null ? null : reference.get();
+    }
+
+    private static WeakReference<AccessibleContext> referenceOf(AccessibleContext accessibleContext) {
+        return accessibleContext == null ? null : new WeakReference<>(accessibleContext);
+    }
 
     private static void emitJTreeActiveDescendant(JTree tree, AccessibleContext treeAccContext) {
         if (tree == null || treeAccContext == null) {
@@ -763,11 +772,14 @@ public class AtkWrapper {
 
     private static void dispatchFocusEvent(Object eventSource) {
         if (eventSource == null) {
-            oldSourceContext = null;
+            oldSourceContextRef = null;
             return;
         }
 
         AccessibleContext eventSourceContext;
+        AccessibleContext oldSourceContext = dereference(oldSourceContextRef);
+        AccessibleContext savedSourceContext = dereference(savedSourceContextRef);
+        AccessibleContext oldPaneContext = dereference(oldPaneContextRef);
 
         try {
             if (eventSource instanceof AccessibleContext accessibleContext) {
@@ -789,18 +801,23 @@ public class AtkWrapper {
                     String name = eventSourceContext.getClass().getName();
 
                     if (jrootpane.compareTo(name) == 0) {
-                        oldPaneContext = eventSourceContext;
+                        oldPaneContextRef = referenceOf(eventSourceContext);
                         return;
                     }
                 }
-                savedSourceContext = eventSourceContext;
+                savedSourceContextRef = referenceOf(eventSourceContext);
             } else if (oldPaneContext == eventSourceContext) {
                 eventSourceContext = savedSourceContext;
             } else {
-                savedSourceContext = eventSourceContext;
+                savedSourceContextRef = referenceOf(eventSourceContext);
             }
 
-            oldSourceContext = eventSourceContext;
+            if (eventSourceContext == null) {
+                oldSourceContextRef = null;
+                return;
+            }
+
+            oldSourceContextRef = referenceOf(eventSourceContext);
             AccessibleRole role = eventSourceContext.getAccessibleRole();
             if (role == AccessibleRole.PAGE_TAB_LIST) {
                 AccessibleSelection accSelection = eventSourceContext.getAccessibleSelection();
