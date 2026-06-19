@@ -1035,9 +1035,6 @@ static gboolean signal_emit_handler(gpointer p) {
         g_signal_emit_by_name(atk_obj, "children_changed::add", child_index,
                               para->child_impl);
 
-        if (atk_obj != NULL) {
-            g_object_ref(G_OBJECT(atk_obj));
-        }
         break;
     }
     case org_GNOME_Accessibility_AtkSignal_OBJECT_CHILDREN_CHANGED_REMOVE: {
@@ -1060,9 +1057,6 @@ static gboolean signal_emit_handler(gpointer p) {
         g_signal_emit_by_name(atk_obj, "children_changed::remove", child_index,
                               child_impl);
 
-        if (atk_obj != NULL) {
-            g_object_unref(G_OBJECT(atk_obj));
-        }
         break;
     }
     case org_GNOME_Accessibility_AtkSignal_OBJECT_ACTIVE_DESCENDANT_CHANGED: {
