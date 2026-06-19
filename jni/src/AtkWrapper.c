@@ -1216,28 +1216,28 @@ JNIEXPORT void JNICALL Java_org_GNOME_Accessibility_AtkWrapper_emitSignal(
     jobjectArray args) {
     JAW_DEBUG("%p, %p, %p, %d, %p", jniEnv, jClass, jAccContext, id, args);
 
-    pthread_mutex_lock(&jaw_vdc_dup_mutex);
-    if (id != org_GNOME_Accessibility_AtkSignal_OBJECT_VISIBLE_DATA_CHANGED) {
-        /* A non-VISIBLE_DATA_CHANGED event indicates something has changed
-         * in the object's state. Clear the tracking variable so that the next
-         * VISIBLE_DATA_CHANGED event for any object will be queued. */
-        jaw_vdc_clear_last_ac(jniEnv);
-    } else {
+    if (!jAccContext) {
+        g_debug("%s: jAccContext is NULL", G_STRFUNC);
+        return;
+    }
+
+    if (id == org_GNOME_Accessibility_AtkSignal_OBJECT_VISIBLE_DATA_CHANGED) {
+        pthread_mutex_lock(&jaw_vdc_dup_mutex);
+
         if ((*jniEnv)->IsSameObject(jniEnv, jaw_vdc_last_ac, jAccContext)) {
             /* A VISIBLE_DATA_CHANGED event for this object is already queued
              * and has not been processed yet. Skip this duplicate event. */
             pthread_mutex_unlock(&jaw_vdc_dup_mutex);
             return;
-        } else {
-            jaw_vdc_clear_last_ac(jniEnv);
-            jaw_vdc_last_ac = (*jniEnv)->NewGlobalRef(jniEnv, jAccContext);
         }
-    }
-    pthread_mutex_unlock(&jaw_vdc_dup_mutex);
 
-    if (!jAccContext) {
-        g_debug("%s: jAccContext is NULL", G_STRFUNC);
-        return;
+        jobject new_last_ac = (*jniEnv)->NewGlobalRef(jniEnv, jAccContext);
+        if (new_last_ac != NULL) {
+            jaw_vdc_clear_last_ac(jniEnv);
+            jaw_vdc_last_ac = new_last_ac;
+        }
+
+        pthread_mutex_unlock(&jaw_vdc_dup_mutex);
     }
 
     jobject global_ac = (*jniEnv)->NewGlobalRef(
