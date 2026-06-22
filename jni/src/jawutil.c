@@ -487,6 +487,16 @@ static gboolean jaw_util_is_list_item(JNIEnv *jniEnv,
     if (parent == NULL) {
         return FALSE;
     }
+
+    if ((*jniEnv)->IsSameObject(jniEnv, parent, jAccessibleContext)) {
+        g_debug("%s: detected parent cycle while looking for LIST ancestor; "
+                  "context=%p current=%p parent=%p",
+                  G_STRFUNC, (void *)jAccessibleContext,
+                  (void *)jAccessibleContext, (void *)parent);
+        (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+        return FALSE;
+    }
+
     jobject parent_role = (*jniEnv)->CallStaticObjectMethod(
         jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
         parent);
@@ -513,6 +523,20 @@ static gboolean jaw_util_is_tree_item(JNIEnv *jniEnv,
                 (*jniEnv)->DeleteLocalRef(jniEnv, current);
             return FALSE;
         }
+
+        if ((*jniEnv)->IsSameObject(jniEnv, parent, current) ||
+            (*jniEnv)->IsSameObject(jniEnv, parent, jAccessibleContext)) {
+            g_debug(
+                "%s: detected parent cycle while looking for TREE ancestor; "
+                "context=%p current=%p parent=%p",
+                G_STRFUNC, (void *)jAccessibleContext, (void *)current,
+                (void *)parent);
+            (*jniEnv)->DeleteLocalRef(jniEnv, parent);
+            if (current != jAccessibleContext)
+                (*jniEnv)->DeleteLocalRef(jniEnv, current);
+            return FALSE;
+        }
+
         jobject parent_role = (*jniEnv)->CallStaticObjectMethod(
             jniEnv, cachedUtilAtkObjectClass, cachedUtilGetAccessibleRoleMethod,
             parent);
