@@ -31,8 +31,12 @@ import java.nio.file.StandardCopyOption;
 import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
+import javax.swing.JMenuItem;
 import javax.swing.JTree;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeListener;
 import javax.swing.tree.TreePath;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -697,6 +701,48 @@ public class AtkWrapper {
     };
     private final Toolkit toolkit = Toolkit.getDefaultToolkit();
 
+    /** The selected menu path at the previous change, used to detect when the path shrinks. */
+    private MenuElement[] lastMenuSelectionPath = new MenuElement[0];
+
+    /**
+     * Reports a focus change for the menu item that regains selection when a submenu closes.
+     *
+     * <p>Swing does not report a focus change for that item. A {@link JMenu} remains armed
+     * while its submenu is open, so closing the submenu does not cause a state change and
+     * {@code AccessibleJMenuItem.stateChanged} does not fire. Without an explicit event,
+     * assistive technologies may therefore keep their focus on an item from the closed
+     * submenu.
+     *
+     * <p>The listener acts only when the selected menu path shrinks. Path growth and
+     * same-depth selection changes are already reported by Swing.
+     */
+    private final ChangeListener menuSelectionListener = e -> {
+        try {
+            MenuElement[] path = MenuSelectionManager.defaultManager().getSelectedPath();
+            MenuElement[] previous = lastMenuSelectionPath;
+            lastMenuSelectionPath = path;
+            if (path.length == 0 || path.length >= previous.length) {
+                return;
+            }
+            MenuElement leaf = path[path.length - 1];
+            if (leaf == null) {
+                return;
+            }
+            Component component = leaf.getComponent();
+            if (!(component instanceof JMenuItem)) {
+                return;
+            }
+            AccessibleContext ac = component.getAccessibleContext();
+            if (ac != null) {
+                dispatchFocusEvent(ac);
+            }
+        } catch (Throwable t) {
+            if (log.isLoggable(Level.FINE)) {
+                log.log(Level.FINE, "menuSelectionListener failed: ", t);
+            }
+        }
+    };
+
     public AtkWrapper() {
         if (!accessibilityEnabled) {
             if (log.isLoggable(Level.SEVERE)) {
@@ -710,6 +756,9 @@ public class AtkWrapper {
                         AWTEvent.FOCUS_EVENT_MASK |
                         AWTEvent.CONTAINER_EVENT_MASK |
                         AWTEvent.KEY_EVENT_MASK);
+
+        AtkUtil.invokeInSwing(() ->
+                MenuSelectionManager.defaultManager().addChangeListener(menuSelectionListener));
     }
 
     public static void main(String args[]) {
@@ -760,14 +809,39 @@ public class AtkWrapper {
         return null;
     }
 
-    private static boolean isToplevel(Object o) {
-        boolean isToplevel = false;
-        if (o instanceof java.awt.Window ||
-                o instanceof java.awt.Frame ||
-                o instanceof java.awt.Dialog) {
-            isToplevel = true;
+    /**
+     * Determines whether the specified object should be registered as an AT-SPI top-level object.
+     *
+     * <p>An AT-SPI top-level object is exposed as a direct child of the application object.
+     * Frames and dialogs are always registered as top-level objects. A plain
+     * {@link java.awt.Window} is registered as a top-level object only when it has no owner.
+     *
+     * <p>Owned windows, including heavyweight Swing popups used for menus, tooltips, and
+     * balloons, already belong to their owner in the Java accessibility hierarchy.
+     * Registering such a window as a top-level object would incorrectly make it a separate
+     * child of the application object and replace its actual accessible parent.
+     *
+     * <p>Because owned popup windows are not independently activated by the window manager,
+     * exposing them as top-level objects may cause assistive technologies to reject their
+     * descendants when the popup does not have the active state. Leaving them unregistered
+     * preserves the correct hierarchy and allows descendants, such as menu items, to resolve
+     * to the owning frame or dialog.
+     *
+     * @param object the object to test
+     * @return {@code true} if the object should be registered as an AT-SPI top-level object;
+     *         {@code false} otherwise
+     */
+    private static boolean isToplevel(Object object) {
+        if (object instanceof java.awt.Frame || object instanceof java.awt.Dialog) {
+            return true;
         }
-        return isToplevel;
+
+        if (object instanceof java.awt.Window window) {
+            // Owned windows already belong to their owner in the Java accessibility hierarchy.
+            return window.getOwner() == null;
+        }
+
+        return false;
     }
 
     private static void dispatchFocusEvent(Object eventSource) {
