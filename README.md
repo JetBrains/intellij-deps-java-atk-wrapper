@@ -24,6 +24,15 @@ Additional documentation is available in the `docs/` directory:
 
 ## Install
 
+### Dependencies (Ubuntu/Debian)
+Before building, ensure all required build tools and C libraries are installed on your system. You can install them by running:
+
+```bash
+sudo apt install autoconf autoconf-archive libtool libgirepository1.0-dev libatk1.0-dev libatk-bridge2.0-dev libdbus-1-dev
+```
+
+### Build and install
+
 Build from source with autotools:
 
 On Oracle Linux 8, install the native build prerequisites first:
