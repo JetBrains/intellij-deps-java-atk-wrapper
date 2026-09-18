@@ -32,6 +32,7 @@ import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.JTree;
 import javax.swing.MenuElement;
 import javax.swing.MenuSelectionManager;
@@ -782,24 +783,9 @@ public class AtkWrapper {
     /**
      * Determines whether the specified object should be registered as an AT-SPI top-level object.
      *
-     * <p>An AT-SPI top-level object is exposed as a direct child of the application object.
-     * Frames and dialogs are always registered as top-level objects. A plain
-     * {@link java.awt.Window} is registered as a top-level object only when it has no owner.
-     *
-     * <p>Owned windows, including heavyweight Swing popups used for menus, tooltips, and
-     * balloons, already belong to their owner in the Java accessibility hierarchy.
-     * Registering such a window as a top-level object would incorrectly make it a separate
-     * child of the application object and replace its actual accessible parent.
-     *
-     * <p>Because owned popup windows are not independently activated by the window manager,
-     * exposing them as top-level objects may cause assistive technologies to reject their
-     * descendants when the popup does not have the active state. Leaving them unregistered
-     * preserves the correct hierarchy and allows descendants, such as menu items, to resolve
-     * to the owning frame or dialog.
-     *
-     * @param object the object to test
-     * @return {@code true} if the object should be registered as an AT-SPI top-level object;
-     *         {@code false} otherwise
+     * <p>Heavyweight Swing menu popup windows are not exposed as top-level objects. This
+     * preserves a Java menu accessibility workaround that previously lived in Orca's
+     * J2SE-specific script and was removed together with that script.
      */
     private static boolean isToplevel(Object object) {
         if (object instanceof java.awt.Frame || object instanceof java.awt.Dialog) {
@@ -807,8 +793,30 @@ public class AtkWrapper {
         }
 
         if (object instanceof java.awt.Window window) {
-            // Owned windows already belong to their owner in the Java accessibility hierarchy.
-            return window.getOwner() == null;
+            if (window.getOwner() == null) {
+                return true;
+            }
+
+            return !containsSwingMenuPopup(window);
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns true when the owned AWT window is the heavyweight host of a Swing popup menu.
+     */
+    private static boolean containsSwingMenuPopup(Component component) {
+        if (component instanceof JPopupMenu || component instanceof JMenuItem) {
+            return true;
+        }
+
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                if (containsSwingMenuPopup(child)) {
+                    return true;
+                }
+            }
         }
 
         return false;
