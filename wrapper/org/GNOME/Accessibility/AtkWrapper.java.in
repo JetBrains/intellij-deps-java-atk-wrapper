@@ -31,6 +31,7 @@ import java.nio.file.StandardCopyOption;
 import javax.accessibility.*;
 import java.awt.Toolkit;
 import javax.swing.JComboBox;
+import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JTree;
@@ -70,6 +71,25 @@ public class AtkWrapper {
         }
 
         emitActiveDescendantChanged(treeAccContext, childAccContext);
+    }
+
+    /**
+     * Reports the selected item of a list that just took focus.
+     * <p>
+     * {@code AccessibleJList} reports a new active descendant when the lead selection index changes, which can
+     * happen before the list takes focus. A screen reader ignores the signal then, because the list is not yet
+     * its locus of focus, and the item stays unannounced. This repeats the signal once the list holds the
+     * focus, as {@link #emitJTreeActiveDescendant} does for a tree.
+     * <p>
+     * See: IJPL-242490
+     */
+    private static void emitJListActiveDescendant(JList<?> list, AccessibleContext listAccContext) {
+        AccessibleContext childAccContext = JListContextCacheManager.resolveActiveDescendant(list, listAccContext);
+        if (childAccContext == null) {
+            return;
+        }
+
+        emitActiveDescendantChanged(listAccContext, childAccContext);
     }
 
     private static void emitActiveDescendantChanged(AccessibleContext sourceContext, AccessibleContext childContext) {
@@ -227,6 +247,20 @@ public class AtkWrapper {
                     }
                 }
 
+                /*
+                 * AccessibleJList names the correct item in newValue, but it creates a new
+                 * AccessibleJListChild for every call. The substituted context keeps one identity per item,
+                 * so a screen reader can match the item against the list it already knows.
+                 * See: IJPL-242489
+                 */
+                if (ac.getAccessibleRole() == AccessibleRole.LIST) {
+                    AccessibleContext listChild = JListContextCacheManager.resolveActiveDescendant(ac);
+                    if (listChild != null) {
+                        emitActiveDescendantChanged(ac, listChild);
+                        return;
+                    }
+                }
+
                 AccessibleContext child_ac;
                 if (newValue instanceof Accessible accessible) {
                     child_ac = accessible.getAccessibleContext();
@@ -282,6 +316,25 @@ public class AtkWrapper {
                  */
                 if (ac.getAccessibleRole() == AccessibleRole.COMBO_BOX) {
                     return;
+                }
+
+                /*
+                 * JList has the same problem. AccessibleJList.valueChanged fires ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY
+                 * and then ACCESSIBLE_SELECTION_PROPERTY for one selection change, so object:selection-changed arrives
+                 * after object:active-descendant-changed and interrupts the announcement of the selected item. A screen
+                 * reader then reads only the beginning of the item, or nothing at all.
+                 *
+                 * The list must hold the focus. A screen reader honours object:active-descendant-changed only from its
+                 * locus of focus, so only a focused list can announce the item on its own. The list in a combo box
+                 * popup never takes the focus, and object:selection-changed is the only signal that announces its
+                 * items.
+                 * See: IJPL-242489
+                 */
+                if (ac.getAccessibleRole() == AccessibleRole.LIST) {
+                    AccessibleStateSet listStates = ac.getAccessibleStateSet();
+                    if (listStates != null && listStates.contains(AccessibleState.FOCUSED)) {
+                        return;
+                    }
                 }
 
                 if (!isTextEvent) {
@@ -888,12 +941,20 @@ public class AtkWrapper {
                 if (eventSource instanceof JTree tree) {
                     JTreeContextCacheManager.rememberJTree(tree, eventSourceContext);
                 }
+                if (eventSource instanceof JList<?> list) {
+                    JListContextCacheManager.rememberJList(list, eventSourceContext);
+                }
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
                 focusNotify(eventSourceContext);
             }
 
             if (eventSource instanceof JTree tree) {
                 emitJTreeActiveDescendant(tree, eventSourceContext);
+                return;
+            }
+
+            if (eventSource instanceof JList<?> list) {
+                emitJListActiveDescendant(list, eventSourceContext);
                 return;
             }
         } catch (Exception e) {
