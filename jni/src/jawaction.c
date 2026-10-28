@@ -253,9 +253,12 @@ void jaw_action_data_finalize(gpointer p) {
  *
  * Perform the specified action on the object.
  *
+ * The action is submitted to the EDT without waiting for its completion.
+ * Only the check of the action index waits for the EDT.
+ *
  * Invoked from GLib main loop; no Push/PopLocalFrame/DeleteLocalRef needed
  *
- * Returns: %TRUE if success, %FALSE otherwise
+ * Returns: %TRUE if the action is successfully invoked, otherwise $FALSE.
  **/
 static gboolean jaw_action_do_action(AtkAction *action, gint i) {
     JAW_DEBUG("%p, %d", action, i);

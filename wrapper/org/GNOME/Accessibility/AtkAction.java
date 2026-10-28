@@ -79,9 +79,11 @@ public class AtkAction {
     /**
      * Performs the specified action on the object.
      * Called from native code via JNI.
+     * <p>
+     * When called from the AT-SPI thread, the action is submitted to the EDT without waiting for its completion.
      *
      * @param index the action index corresponding to the action to be performed
-     * @return true if the action was successfully performed, false otherwise
+     * @return true if the object has an action at that index, which is then submitted, false otherwise
      */
     private boolean do_action(int index) {
         if (index < 0) {
@@ -92,13 +94,12 @@ public class AtkAction {
             return false;
         }
 
-        return AtkUtil.invokeInSwingAndWait(() -> {
-            int count = accessibleAction.getAccessibleActionCount();
-            if (index >= count) {
-                return false;
-            }
-            return accessibleAction.doAccessibleAction(index);
-        }, false);
+        boolean exists = AtkUtil.invokeInSwingAndWait(() -> index < accessibleAction.getAccessibleActionCount(), false);
+        if (!exists) {
+            return false;
+        }
+        AtkUtil.invokeInSwing(() -> accessibleAction.doAccessibleAction(index));
+        return true;
     }
 
     /**
