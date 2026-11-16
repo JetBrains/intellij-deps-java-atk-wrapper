@@ -37,7 +37,9 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 import javax.accessibility.AccessibleTable;
 import javax.accessibility.AccessibleText;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import java.awt.EventQueue;
 import java.awt.event.InputEvent;
@@ -163,12 +165,19 @@ public class AtkObject {
      * Gets the parent AccessibleContext of the given accessible context.
      * Called from native code via JNI.
      *
+     * <p>A component in the popup of a {@link JMenu} reports the menu as its parent, not the
+     * {@link JPopupMenu}. This matches {@code JMenu.AccessibleJMenu}, which lists the popup
+     * components as the children of the menu.
+     *
      * @param ac the accessible context
      * @return the parent accessible context, or null if no parent exists
      */
     private static AccessibleContext get_accessible_parent(AccessibleContext ac) {
         return AtkUtil.invokeInSwingAndWait(() -> {
             Accessible accessibleParent = ac.getAccessibleParent();
+            if (accessibleParent instanceof JPopupMenu popup && popup.getInvoker() instanceof JMenu menu) {
+                accessibleParent = menu;
+            }
             if (accessibleParent == null) {
                 return null;
             }
