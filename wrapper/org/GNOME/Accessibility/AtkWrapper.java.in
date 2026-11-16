@@ -296,6 +296,16 @@ public class AtkWrapper {
                 args[1] = newValue;
                 emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_ACTIONS, args);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_VALUE_PROPERTY)) {
+                AccessibleRole valueRole = ac.getAccessibleRole();
+                if (valueRole == AccessibleRole.MENU || valueRole == AccessibleRole.MENU_ITEM) {
+                    /*
+                     * AbstractButton reports its selected state as a numeric value of 0 or 1. A JMenu becomes selected
+                     * when it joins the menu selection path, so it fires a value change right after it gets the focus.
+                     * An assistive technology presents the focused object again on a value change, which interrupts
+                     * the announcement of the opened parent menu. The selection is already reported by state changes.
+                     */
+                    return;
+                }
                 if (oldValue instanceof Number oldValueNamber && newValue instanceof Number newValueNumber) {
                     Object[] args = new Object[2];
                     args[0] = Double.valueOf(oldValueNamber.doubleValue());
