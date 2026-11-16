@@ -339,6 +339,16 @@ public class AtkWrapper {
                         dispatchFocusEvent(o);
                     }
                 }
+                if (newValue == AccessibleState.FOCUSED && role == AccessibleRole.ROOT_PANE
+                        && MenuSelectionManager.defaultManager().getSelectedPath().length > 0) {
+                    /*
+                     * Swing moves the keyboard focus to the JRootPane while a menu is open. dispatchFocusEvent() already
+                     * drops the focus notification for it, so do not emit the focused state change either. Otherwise,
+                     * an assistive technology moves its focus from the menu to the root pane and interrupts the
+                     * announcement of the opened menu.
+                     */
+                    return;
+                }
                 AccessibleState state;
                 boolean value = false;
                 if (newValue != null) {
