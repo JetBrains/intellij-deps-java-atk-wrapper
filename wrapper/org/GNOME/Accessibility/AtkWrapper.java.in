@@ -55,6 +55,32 @@ public class AtkWrapper {
     // Previously focused JRootPane's AccessibleContext
     private static WeakReference<AccessibleContext> oldPaneContextRef = null;
 
+    // The last active descendant that was reported to ATK. Orca keeps it as the object in focus.
+    // The reference is strong, because JTreeContextCacheManager can drop this context from its cache.
+    // dispatchFocusEvent clears the reference when the focus moves to a different component.
+    private static AccessibleContext lastActiveDescendant = null;
+
+    /**
+     * JTree makes a new AccessibleContext for a node each time it sends an event.
+     * Returns true if the two contexts are the same visible node.
+     */
+    private static boolean isSameNode(AccessibleContext first, AccessibleContext second) {
+        if (first == second) {
+            return true;
+        }
+        if (first.getAccessibleRole() != second.getAccessibleRole()
+                || !Objects.equals(first.getAccessibleName(), second.getAccessibleName())) {
+            return false;
+        }
+        AccessibleComponent firstComponent = first.getAccessibleComponent();
+        AccessibleComponent secondComponent = second.getAccessibleComponent();
+        if (firstComponent == null || secondComponent == null) {
+            return false;
+        }
+        Rectangle firstBounds = firstComponent.getBounds();
+        return firstBounds != null && firstBounds.equals(secondComponent.getBounds());
+    }
+
     private static AccessibleContext dereference(WeakReference<AccessibleContext> reference) {
         return reference == null ? null : reference.get();
     }
@@ -79,6 +105,7 @@ public class AtkWrapper {
 
         AtkWrapperDisposer.getInstance().addRecord(sourceContext);
         AtkWrapperDisposer.getInstance().addRecord(childContext);
+        lastActiveDescendant = childContext;
 
         emitSignal(sourceContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, new Object[] { childContext });
     }
@@ -371,6 +398,18 @@ public class AtkWrapper {
                 if (state == AccessibleState.COLLAPSED) {
                     state = AccessibleState.EXPANDED;
                     value = false;
+                }
+                if (state == AccessibleState.EXPANDED) {
+                    /*
+                     * JTree sends the expansion of a node from a new AccessibleContext of this node.
+                     * This context has no ATK object, and ATK drops the event.
+                     * Use the context of the last active descendant when it is the same node,
+                     * because Orca presents a collapse only for the object in focus.
+                     */
+                    if (lastActiveDescendant != null && isSameNode(lastActiveDescendant, ac)) {
+                        ac = lastActiveDescendant;
+                    }
+                    AtkWrapperDisposer.getInstance().addRecord(ac);
                 }
                 if (parent instanceof JComboBox && oldValue ==
                         AccessibleState.VISIBLE) {
@@ -890,6 +929,7 @@ public class AtkWrapper {
             }
 
             oldSourceContextRef = referenceOf(eventSourceContext);
+            lastActiveDescendant = null;
             AccessibleRole role = eventSourceContext.getAccessibleRole();
             if (role == AccessibleRole.PAGE_TAB_LIST) {
                 AccessibleSelection accSelection = eventSourceContext.getAccessibleSelection();
