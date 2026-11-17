@@ -81,6 +81,79 @@ public class AtkWrapper {
         return firstBounds != null && firstBounds.equals(secondComponent.getBounds());
     }
 
+    /**
+     * The target of the native calls made during event translation. Unit tests replace it, see {@link NativeBridge}.
+     */
+    static volatile NativeBridge nativeBridge = new NativeBridge() {
+        public long createNativeResources(AccessibleContext ac) {
+            return AtkWrapper.createNativeResources(ac);
+        }
+
+        public void releaseNativeResources(long ref) {
+            AtkWrapper.releaseNativeResources(ref);
+        }
+
+        public void focusNotify(AccessibleContext ac) {
+            AtkWrapper.focusNotify(ac);
+        }
+
+        public void emitSignal(AccessibleContext ac, int id, Object[] args) {
+            AtkWrapper.emitSignal(ac, id, args);
+        }
+
+        public void objectStateChange(AccessibleContext ac, Object state, boolean value) {
+            AtkWrapper.objectStateChange(ac, state, value);
+        }
+
+        public void windowOpen(AccessibleContext ac, boolean isToplevel) {
+            AtkWrapper.windowOpen(ac, isToplevel);
+        }
+
+        public void windowClose(AccessibleContext ac, boolean isToplevel) {
+            AtkWrapper.windowClose(ac, isToplevel);
+        }
+
+        public void windowMinimize(AccessibleContext ac) {
+            AtkWrapper.windowMinimize(ac);
+        }
+
+        public void windowMaximize(AccessibleContext ac) {
+            AtkWrapper.windowMaximize(ac);
+        }
+
+        public void windowRestore(AccessibleContext ac) {
+            AtkWrapper.windowRestore(ac);
+        }
+
+        public void windowActivate(AccessibleContext ac) {
+            AtkWrapper.windowActivate(ac);
+        }
+
+        public void windowDeactivate(AccessibleContext ac) {
+            AtkWrapper.windowDeactivate(ac);
+        }
+
+        public void windowStateChange(AccessibleContext ac) {
+            AtkWrapper.windowStateChange(ac);
+        }
+
+        public void componentAdded(AccessibleContext ac) {
+            AtkWrapper.componentAdded(ac);
+        }
+
+        public void componentRemoved(AccessibleContext ac) {
+            AtkWrapper.componentRemoved(ac);
+        }
+
+        public void boundsChanged(AccessibleContext ac) {
+            AtkWrapper.boundsChanged(ac);
+        }
+
+        public void dispatchKeyEvent(AtkKeyEvent e) {
+            AtkWrapper.dispatchKeyEvent(e);
+        }
+    };
+
     private static AccessibleContext dereference(WeakReference<AccessibleContext> reference) {
         return reference == null ? null : reference.get();
     }
@@ -107,7 +180,7 @@ public class AtkWrapper {
         AtkWrapperDisposer.getInstance().addRecord(childContext);
         lastActiveDescendant = childContext;
 
-        emitSignal(sourceContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, new Object[] { childContext });
+        nativeBridge.emitSignal(sourceContext, AtkSignal.OBJECT_ACTIVE_DESCENDANT_CHANGED, new Object[] { childContext });
     }
 
     private static final PropertyChangeListener propertyChangeListener = new PropertyChangeListener() {
@@ -152,7 +225,7 @@ public class AtkWrapper {
                     }
                 }
 
-                emitSignal(ac, AtkSignal.TEXT_CARET_MOVED, args);
+                nativeBridge.emitSignal(ac, AtkSignal.TEXT_CARET_MOVED, args);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TEXT_PROPERTY)) {
                 /**
                  * The documentation for AccessibleContext.ACCESSIBLE_TEXT_PROPERTY states that newValue
@@ -176,7 +249,7 @@ public class AtkWrapper {
                          * 2. arg2 - the length (in characters) of text inserted.
                          * 3. arg3 - the new text inserted.
                          */
-                        emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED_INSERT, args);
+                        nativeBridge.emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED_INSERT, args);
                     } else if (newValue instanceof Integer) { // real insertion or deletion event that Swing components send
                         Object[] args = new Object[1];
                         args[0] = newValue; // the position (character offset) of the insertion or deletion
@@ -187,7 +260,7 @@ public class AtkWrapper {
                          *
                          * In our case, arg2 is unknown.
                          */
-                        emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED, args);
+                        nativeBridge.emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED, args);
                     }
                 } else if (oldValue != null && newValue == null) {
                     if (oldValue instanceof AccessibleTextSequence oldSeq) { // deletion event according to the Swing documentation
@@ -202,7 +275,7 @@ public class AtkWrapper {
                          * 2. arg2 - the length (in characters) of text removed.
                          * 3. arg3 - the new text removed.
                          */
-                        emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED_DELETE, args);
+                        nativeBridge.emitSignal(ac, AtkSignal.TEXT_PROPERTY_CHANGED_DELETE, args);
                     }
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_CHILD_PROPERTY)) {
@@ -224,7 +297,7 @@ public class AtkWrapper {
 
                     AtkWrapperDisposer.getInstance().addRecord(child_ac);
 
-                    emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_ADD, args);
+                    nativeBridge.emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_ADD, args);
                 } else if (oldValue != null && newValue == null) { //child removed
                     AccessibleContext child_ac;
                     if (oldValue instanceof Accessible accessible) {
@@ -243,7 +316,7 @@ public class AtkWrapper {
 
                     AtkWrapperDisposer.getInstance().addRecord(child_ac);
 
-                    emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_REMOVE, args);
+                    nativeBridge.emitSignal(ac, AtkSignal.OBJECT_CHILDREN_CHANGED_REMOVE, args);
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY)) {
                 if (ac.getAccessibleRole() == AccessibleRole.TREE) {
@@ -312,16 +385,16 @@ public class AtkWrapper {
                 }
 
                 if (!isTextEvent) {
-                    emitSignal(ac, AtkSignal.OBJECT_SELECTION_CHANGED, null);
+                    nativeBridge.emitSignal(ac, AtkSignal.OBJECT_SELECTION_CHANGED, null);
                 }
 
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY)) {
-                emitSignal(ac, AtkSignal.OBJECT_VISIBLE_DATA_CHANGED, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_VISIBLE_DATA_CHANGED, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_ACTION_PROPERTY)) {
                 Object[] args = new Object[2];
                 args[0] = oldValue;
                 args[1] = newValue;
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_ACTIONS, args);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_ACTIONS, args);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_VALUE_PROPERTY)) {
                 AccessibleRole valueRole = ac.getAccessibleRole();
                 if (valueRole == AccessibleRole.MENU || valueRole == AccessibleRole.MENU_ITEM) {
@@ -337,30 +410,30 @@ public class AtkWrapper {
                     Object[] args = new Object[2];
                     args[0] = Double.valueOf(oldValueNamber.doubleValue());
                     args[1] = Double.valueOf(newValueNumber.doubleValue());
-                    emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_VALUE, args);
+                    nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_VALUE, args);
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_DESCRIPTION_PROPERTY)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_DESCRIPTION, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_DESCRIPTION, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_NAME_PROPERTY)) {
                 if (!Objects.equals(newValue, oldValue)) {
-                    emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_NAME, null);
+                    nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_NAME, null);
                 }
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_HYPERTEXT_OFFSET)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_HYPERTEXT_OFFSET, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_HYPERTEXT_OFFSET, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED)) {
-                emitSignal(ac, AtkSignal.TABLE_MODEL_CHANGED, null);
+                nativeBridge.emitSignal(ac, AtkSignal.TABLE_MODEL_CHANGED, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_CAPTION_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_CAPTION, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_CAPTION, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_SUMMARY_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_SUMMARY, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_SUMMARY, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_COLUMN_HEADER_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_COLUMN_HEADER, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_COLUMN_HEADER, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_COLUMN_DESCRIPTION_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_COLUMN_DESCRIPTION, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_COLUMN_DESCRIPTION, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_ROW_HEADER_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_ROW_HEADER, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_ROW_HEADER, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_TABLE_ROW_DESCRIPTION_CHANGED)) {
-                emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_ROW_DESCRIPTION, null);
+                nativeBridge.emitSignal(ac, AtkSignal.OBJECT_PROPERTY_CHANGE_ACCESSIBLE_TABLE_ROW_DESCRIPTION, null);
             } else if (propertyName.equals(AccessibleContext.ACCESSIBLE_STATE_PROPERTY)) {
                 Accessible parent = ac.getAccessibleParent();
                 AccessibleRole role = ac.getAccessibleRole();
@@ -413,12 +486,12 @@ public class AtkWrapper {
                 }
                 if (parent instanceof JComboBox && oldValue ==
                         AccessibleState.VISIBLE) {
-                    objectStateChange(ac, AccessibleState.SHOWING, value);
+                    nativeBridge.objectStateChange(ac, AccessibleState.SHOWING, value);
                 }
-                objectStateChange(ac, state, value);
+                nativeBridge.objectStateChange(ac, state, value);
                 if (parent instanceof JComboBox && newValue ==
                         AccessibleState.VISIBLE && oldValue == null) {
-                    objectStateChange(ac, AccessibleState.SHOWING, value);
+                    nativeBridge.objectStateChange(ac, AccessibleState.SHOWING, value);
                 }
             }
         }
@@ -531,7 +604,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowActivate(accessibleContext);
+                    nativeBridge.windowActivate(accessibleContext);
                 }
             }
         }
@@ -542,7 +615,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowDeactivate(accessibleContext);
+                    nativeBridge.windowDeactivate(accessibleContext);
                 }
             }
         }
@@ -553,9 +626,9 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowStateChange(accessibleContext);
+                    nativeBridge.windowStateChange(accessibleContext);
                     if ((e.getNewState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH) {
-                        AtkWrapper.windowMaximize(accessibleContext);
+                        nativeBridge.windowMaximize(accessibleContext);
                     }
                 }
             }
@@ -567,7 +640,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowRestore(accessibleContext);
+                    nativeBridge.windowRestore(accessibleContext);
                 }
             }
         }
@@ -578,7 +651,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowMinimize(accessibleContext);
+                    nativeBridge.windowMinimize(accessibleContext);
                 }
             }
         }
@@ -590,7 +663,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowOpen(accessibleContext, isToplevel);
+                    nativeBridge.windowOpen(accessibleContext, isToplevel);
                 }
             }
         }
@@ -602,7 +675,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowClose(accessibleContext, isToplevel);
+                    nativeBridge.windowClose(accessibleContext, isToplevel);
                 }
             }
         }
@@ -614,7 +687,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.windowClose(accessibleContext, isToplevel);
+                    nativeBridge.windowClose(accessibleContext, isToplevel);
                 }
             }
         }
@@ -632,7 +705,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.boundsChanged(accessibleContext);
+                    nativeBridge.boundsChanged(accessibleContext);
                 }
             }
         }
@@ -643,7 +716,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.boundsChanged(accessibleContext);
+                    nativeBridge.boundsChanged(accessibleContext);
                 }
             }
         }
@@ -654,7 +727,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.componentAdded(accessibleContext);
+                    nativeBridge.componentAdded(accessibleContext);
                 }
             }
         }
@@ -665,7 +738,7 @@ public class AtkWrapper {
                 AccessibleContext accessibleContext = accessible.getAccessibleContext();
                 if (accessibleContext != null) {
                     AtkWrapperDisposer.getInstance().addRecord(accessibleContext);
-                    AtkWrapper.componentRemoved(accessibleContext);
+                    nativeBridge.componentRemoved(accessibleContext);
                 }
             }
         }
@@ -719,12 +792,12 @@ public class AtkWrapper {
                         break;
                 }
             } else if (e instanceof KeyEvent keyEvent) {
-                AtkWrapper.dispatchKeyEvent(new AtkKeyEvent(keyEvent));
+                nativeBridge.dispatchKeyEvent(new AtkKeyEvent(keyEvent));
                 // KEY_TYPED has no keycode (VK_UNDEFINED) and has no ATK/X11 equivalent.
                 // Dispatching it causes a duplicate ATK_KEY_EVENT_PRESS that triggers
                 // spurious Orca flat-review commands (see AtkKeyEvent: KEY_TYPED → PRESSED).
                 // if (keyEvent.getID() != KeyEvent.KEY_TYPED) {
-                //    AtkWrapper.dispatchKeyEvent(new AtkKeyEvent(keyEvent));
+                //    nativeBridge.dispatchKeyEvent(new AtkKeyEvent(keyEvent));
                 // }
             }
         }
@@ -949,7 +1022,7 @@ public class AtkWrapper {
                     JTreeContextCacheManager.rememberJTree(tree, eventSourceContext);
                 }
                 AtkWrapperDisposer.getInstance().addRecord(eventSourceContext);
-                focusNotify(eventSourceContext);
+                nativeBridge.focusNotify(eventSourceContext);
             }
 
             if (eventSource instanceof JTree tree) {
