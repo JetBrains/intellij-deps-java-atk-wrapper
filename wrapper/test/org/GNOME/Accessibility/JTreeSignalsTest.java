@@ -20,6 +20,7 @@ package org.GNOME.Accessibility;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import javax.accessibility.AccessibleContext;
@@ -133,6 +134,20 @@ class JTreeSignalsTest extends AtkTestBase {
             assertSame(a1.getAccessibleParent(), a2.getAccessibleParent());
             return null;
         });
+    }
+
+    // Upstream fix 796cbec "Fix: Orca doesn't announce root in JTree"
+
+    @Test
+    void selectionChangeOfTheTreeIsNotEmitted() throws Exception {
+        onEdt(() -> {
+            AtkWrapper.dispatchFocusEvent(tree);
+            tree.setSelectionPath(pathA);
+            return null;
+        });
+
+        assertTrue(bridge.signals(AtkSignal.OBJECT_SELECTION_CHANGED).isEmpty(),
+                "see https://gitlab.gnome.org/GNOME/orca/-/issues/552");
     }
 
     private static AccessibleContext activeDescendantOf(RecordingNativeBridge.Call emitSignal) {
