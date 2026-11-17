@@ -59,6 +59,21 @@ make
 make install
 ```
 
+### Tests
+
+`make check` runs the Java unit tests in `wrapper/test/` with JUnit 5. The tests run headless and without
+`libatk-wrapper.so`: they replace the native calls with a recording `NativeBridge`, so they need neither a display
+nor an AT-SPI bus. On the first run, the target downloads `junit-platform-console-standalone` from Maven Central
+into `test-lib/` and verifies its SHA-256. To use a local copy instead:
+
+```bash
+make check JUNIT_CONSOLE_JAR=/path/to/junit-platform-console-standalone-1.14.4.jar
+```
+
+The download needs `curl` and `sha256sum` (or `shasum`). `configure --enable-java-tests=auto`, the default, turns the
+tests off with a warning when neither they nor `JUNIT_CONSOLE_JAR` are available; `--enable-java-tests=yes` makes this
+an error, and `--disable-java-tests` turns the tests off, for example in an offline package build.
+
 ## Upstream Project
 
 This project is based on **Java ATK Wrapper** from the GNOME Project.
