@@ -44,3 +44,6 @@ jni/src/.deps
 wrapper/org/GNOME/Accessibility/AtkWrapper.java
 wrapper/java-atk-wrapper.jar
 /bin
+
+/test-classes
+/test-lib

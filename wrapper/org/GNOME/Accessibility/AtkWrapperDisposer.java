@@ -140,6 +140,16 @@ public class AtkWrapperDisposer implements Runnable {
         }
     }
 
+    /**
+     * Forgets which contexts are registered, so that the next {@link #addRecord} creates a native resource again.
+     * Unit tests call it between tests. The pending phantom references stay, so every resource is still released.
+     */
+    static void forgetRegisteredContexts() {
+        synchronized (lock) {
+            weakHashMap.clear();
+        }
+    }
+
     private long getRecord(AccessibleContext ac) {
         synchronized (lock) {
             if (weakHashMap.containsKey(ac)) {
