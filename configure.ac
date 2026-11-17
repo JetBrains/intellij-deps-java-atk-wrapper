@@ -118,6 +118,49 @@ if test -z "$JAR"; then
 fi
 AC_SUBST(JAR)
 
+dnl Java unit tests, run by make check. The variables are precious: configure takes them from the environment,
+dnl and make check also accepts them on the command line.
+AC_ARG_VAR([JUNIT_CONSOLE_JAR], [junit-platform-console-standalone jar for make check, downloaded when not set])
+AC_ARG_VAR([CURL], [curl command that downloads JUnit])
+AC_ARG_VAR([SHA256SUM], [command that verifies the JUnit download, called like sha256sum -c])
+AC_ARG_ENABLE([java-tests],
+  [AS_HELP_STRING([--enable-java-tests=@<:@yes/no/auto@:>@],
+    [run the Java unit tests in make check; auto runs them when JUNIT_CONSOLE_JAR is set or curl and sha256sum are found @<:@default=auto@:>@])],
+  [], [enable_java_tests=auto])
+AC_PATH_PROG([CURL], [curl])
+AC_PATH_PROGS([SHA256SUM], [sha256sum gsha256sum])
+if test -z "$SHA256SUM"; then
+  AC_PATH_PROG([SHASUM], [shasum])
+  if test -n "$SHASUM"; then
+    SHA256SUM="$SHASUM -a 256"
+  fi
+fi
+if test -n "$JUNIT_CONSOLE_JAR" || { test -n "$CURL" && test -n "$SHA256SUM"; }; then
+  junit_available=yes
+else
+  junit_available=no
+fi
+case "$enable_java_tests" in
+  yes)
+    if test "$junit_available" = no; then
+      AC_MSG_ERROR([--enable-java-tests needs JUNIT_CONSOLE_JAR, or curl and sha256sum to download JUnit])
+    fi
+    ;;
+  no)
+    ;;
+  auto)
+    enable_java_tests=$junit_available
+    if test "$enable_java_tests" = no; then
+      AC_MSG_WARN([make check skips the Java unit tests: set JUNIT_CONSOLE_JAR, or install curl and sha256sum])
+    fi
+    ;;
+  *)
+    AC_MSG_ERROR([bad value $enable_java_tests for --enable-java-tests])
+    ;;
+esac
+AM_CONDITIONAL(JAVA_TESTS, test "$enable_java_tests" = yes)
+: ${JUNIT_CONSOLE_JAR='$(JUNIT_DOWNLOAD_DIR)/$(JUNIT_JAR_NAME)'}
+
 
 if test "x$GCC" = xyes; then
   JAW_CFLAGS="$JAW_CFLAGS $CFLAGS"
@@ -239,6 +282,7 @@ Build configuration:
        Prefix:                                 ${prefix}
        Source code location:                   ${srcdir}
        Modular jar:                            ${enable_modular_jar}
+       Java unit tests:                        ${enable_java_tests}
        Compiler:                               ${CC}
        JDK src:                                ${JDK_SRC}
        JAVA home:                              ${JAVA_HOME}
