@@ -773,7 +773,6 @@ static void jaw_object_set_role(AtkObject *atk_obj, AtkRole role) {
     atk_obj->role = role;
 }
 
-#if !ATK_CHECK_VERSION(2, 38, 0)
 static gboolean is_collapsed_java_state(JNIEnv *jniEnv, jobject jobj) {
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
@@ -791,7 +790,6 @@ static gboolean is_collapsed_java_state(JNIEnv *jniEnv, jobject jobj) {
 
     return FALSE;
 }
-#endif
 
 /**
  * atk_object_ref_state_set:
@@ -839,13 +837,17 @@ static AtkStateSet *jaw_object_ref_state_set(AtkObject *atk_obj) {
     for (i = 0; i < jarr_size; i++) {
         jobject jstate =
             (*jniEnv)->GetObjectArrayElement(jniEnv, jstate_arr, i);
-#if !ATK_CHECK_VERSION(2, 38, 0)
+        /*
+         * Do not expose ATK_STATE_COLLAPSED. The wrapper reports a collapse as
+         * the removal of ATK_STATE_EXPANDED, and no event removes
+         * ATK_STATE_COLLAPSED from the state cache of the screen reader.
+         * The screen reader derives "collapsed" from ATK_STATE_EXPANDABLE.
+         */
         if (jstate && is_collapsed_java_state(jniEnv, jstate)) {
             (*jniEnv)->DeleteLocalRef(jniEnv,
                                       jstate); // deleting local ref in the loop
             continue;
         }
-#endif
         AtkStateType state_type =
             jaw_util_get_atk_state_type_from_java_state(jniEnv, jstate);
         atk_state_set_add_state(state_set, state_type);
