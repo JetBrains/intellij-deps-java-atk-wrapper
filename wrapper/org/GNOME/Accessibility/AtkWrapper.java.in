@@ -819,7 +819,7 @@ public class AtkWrapper {
      * <p>The listener acts only when the selected menu path shrinks. Path growth and
      * same-depth selection changes are already reported by Swing.
      */
-    private final ChangeListener menuSelectionListener = e -> {
+    final ChangeListener menuSelectionListener = e -> {
         try {
             MenuElement[] path = MenuSelectionManager.defaultManager().getSelectedPath();
             MenuElement[] previous = lastMenuSelectionPath;

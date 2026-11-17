@@ -18,15 +18,21 @@
 
 package org.GNOME.Accessibility;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import javax.accessibility.AccessibleContext;
 import javax.swing.JButton;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
+import javax.swing.event.ChangeListener;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +59,14 @@ class MenuAccessibilityTest extends AtkTestBase {
             fileMenu.add(openItem);
             fileMenu.add(recentMenu);
             recentMenu.add(recentItem);
+            return null;
+        });
+    }
+
+    @AfterEach
+    void clearMenuSelection() throws Exception {
+        onEdt(() -> {
+            MenuSelectionManager.defaultManager().clearSelectedPath();
             return null;
         });
     }
@@ -114,5 +128,56 @@ class MenuAccessibilityTest extends AtkTestBase {
         });
 
         assertSame(popup.getAccessibleContext(), accessibleParent(item.getAccessibleContext()));
+    }
+
+    // IJPL-253929
+
+    @Test
+    void closingASubmenuFocusesItsMenu() throws Exception {
+        ChangeListener listener = menuSelectionListener();
+        MenuSelectionManager manager = MenuSelectionManager.defaultManager();
+        onEdt(() -> {
+            manager.addChangeListener(listener);
+            try {
+                manager.setSelectedPath(new MenuElement[] {
+                        menuBar, fileMenu, fileMenu.getPopupMenu(), recentMenu, recentMenu.getPopupMenu(), recentItem});
+                assertTrue(bridge.calls("focusNotify").isEmpty(), "Swing reports the growth of the path itself");
+
+                manager.setSelectedPath(new MenuElement[] {menuBar, fileMenu, fileMenu.getPopupMenu(), recentMenu});
+            } finally {
+                manager.removeChangeListener(listener);
+            }
+            return null;
+        });
+
+        List<RecordingNativeBridge.Call> focus = bridge.calls("focusNotify");
+        assertEquals(1, focus.size(), () -> "focus events: " + focus);
+        assertSame(recentMenu.getAccessibleContext(), focus.get(0).context());
+    }
+
+    @Test
+    void movingWithinOneMenuDoesNotFocus() throws Exception {
+        ChangeListener listener = menuSelectionListener();
+        MenuSelectionManager manager = MenuSelectionManager.defaultManager();
+        onEdt(() -> {
+            manager.addChangeListener(listener);
+            try {
+                manager.setSelectedPath(new MenuElement[] {menuBar, fileMenu, fileMenu.getPopupMenu(), openItem});
+                manager.setSelectedPath(new MenuElement[] {menuBar, fileMenu, fileMenu.getPopupMenu(), recentMenu});
+            } finally {
+                manager.removeChangeListener(listener);
+            }
+            return null;
+        });
+
+        assertTrue(bridge.calls("focusNotify").isEmpty(), () -> "focus events: " + bridge.calls("focusNotify"));
+    }
+
+    /**
+     * The listener is an instance field. The constructor of {@link AtkWrapper} does not register it while
+     * accessibility is disabled, the test registers it itself.
+     */
+    private static ChangeListener menuSelectionListener() throws Exception {
+        return onEdt(AtkWrapper::new).menuSelectionListener;
     }
 }
