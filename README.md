@@ -70,6 +70,11 @@ into `test-lib/` and verifies its SHA-256. To use a local copy instead:
 make check JUNIT_CONSOLE_JAR=/path/to/junit-platform-console-standalone-1.14.4.jar
 ```
 
+`MAVEN_REPOSITORY_URL=<url>` downloads the jar from a Maven mirror instead; the SHA-256 check still applies.
+JUnit XML reports go to `test-reports/`, or to `JUNIT_REPORTS_DIR=<dir>`; `make check` and `make clean` remove only
+the `TEST-*.xml` files there. `configure` takes these variables from the environment, and `make check` also accepts
+them on the command line.
+
 The download needs `curl` and `sha256sum` (or `shasum`). `configure --enable-java-tests=auto`, the default, turns the
 tests off with a warning when neither they nor `JUNIT_CONSOLE_JAR` are available; `--enable-java-tests=yes` makes this
 an error, and `--disable-java-tests` turns the tests off, for example in an offline package build.
