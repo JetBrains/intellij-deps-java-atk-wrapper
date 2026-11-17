@@ -92,7 +92,7 @@ public class AtkWrapperDisposer implements Runnable {
                 synchronized (lock) {
                     nativeReference = phantomMap.remove(obj);
                 }
-                AtkWrapper.releaseNativeResources(nativeReference);
+                AtkWrapper.nativeBridge.releaseNativeResources(nativeReference);
                 obj.clear();
                 obj = null;
             } catch (Exception e) {
@@ -121,7 +121,7 @@ public class AtkWrapperDisposer implements Runnable {
             }
         }
 
-        long nativeReference = AtkWrapper.createNativeResources(ac);
+        long nativeReference = AtkWrapper.nativeBridge.createNativeResources(ac);
         if (nativeReference == -1) {
             return;
         }
@@ -136,7 +136,7 @@ public class AtkWrapperDisposer implements Runnable {
         }
 
         if (nativeReference != -1) {
-            AtkWrapper.releaseNativeResources(nativeReference);
+            AtkWrapper.nativeBridge.releaseNativeResources(nativeReference);
         }
     }
 
