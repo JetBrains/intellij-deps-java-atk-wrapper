@@ -121,6 +121,8 @@ AC_SUBST(JAR)
 dnl Java unit tests, run by make check. The variables are precious: configure takes them from the environment,
 dnl and make check also accepts them on the command line.
 AC_ARG_VAR([JUNIT_CONSOLE_JAR], [junit-platform-console-standalone jar for make check, downloaded when not set])
+AC_ARG_VAR([MAVEN_REPOSITORY_URL], [Maven repository that make check downloads JUnit from])
+AC_ARG_VAR([JUNIT_REPORTS_DIR], [directory for the JUnit XML reports of make check])
 AC_ARG_VAR([CURL], [curl command that downloads JUnit])
 AC_ARG_VAR([SHA256SUM], [command that verifies the JUnit download, called like sha256sum -c])
 AC_ARG_ENABLE([java-tests],
@@ -160,6 +162,8 @@ case "$enable_java_tests" in
 esac
 AM_CONDITIONAL(JAVA_TESTS, test "$enable_java_tests" = yes)
 : ${JUNIT_CONSOLE_JAR='$(JUNIT_DOWNLOAD_DIR)/$(JUNIT_JAR_NAME)'}
+: ${MAVEN_REPOSITORY_URL=https://repo1.maven.org/maven2}
+: ${JUNIT_REPORTS_DIR='$(top_builddir)/test-reports'}
 
 
 if test "x$GCC" = xyes; then
