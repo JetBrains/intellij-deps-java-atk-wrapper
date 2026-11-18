@@ -429,23 +429,6 @@ static const gchar *jaw_object_get_name(AtkObject *atk_obj) {
 
     atk_obj->name = (gchar *)ATK_OBJECT_CLASS(parent_class)->get_name(atk_obj);
 
-    if (atk_object_get_role(atk_obj) == ATK_ROLE_COMBO_BOX &&
-        atk_object_get_n_accessible_children(atk_obj) == 1) {
-        AtkSelection *selection = ATK_SELECTION(atk_obj);
-        if (selection != NULL) {
-            // The caller of the method takes ownership of the returned data,
-            // and is responsible for freeing it.
-            AtkObject *child = atk_selection_ref_selection(selection, 0);
-            if (child != NULL) {
-                const gchar *name = atk_object_get_name(child);
-                g_object_unref(G_OBJECT(child));
-                if (name)
-                    JAW_DEBUG("-> %s", name);
-                return name;
-            }
-        }
-    }
-
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
