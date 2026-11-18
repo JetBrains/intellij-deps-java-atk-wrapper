@@ -31,7 +31,7 @@ Write a body unless the change is mechanical (a typo, an import, a format pass).
 - The first paragraph is the lead: the new state and its cause, in 1-3 sentences.
 - Then one paragraph per decision: what you chose, what you did not choose, and why. Write code names in
   backticks.
-- Then `Tests:`, `Evidence:` and `Left out:`, each on its own line right before its list.
+- Then `Evidence:` and `Left out:`, each on its own line right before its list.
 
 ## Trailers
 
