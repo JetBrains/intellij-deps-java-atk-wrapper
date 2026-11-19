@@ -37,7 +37,6 @@
  * copy of the library or the AT-SPI bridge.
  */
 static void test_smoke_button(void) {
-    jaw_test_reset();
     jobject context =
         jaw_test_fixture("button", STRING_FIXTURE, jaw_test_string("OK"));
     AtkObject *object = jaw_test_atk_object(context);
@@ -59,7 +58,6 @@ static void test_smoke_button(void) {
  * a JTree stable (IJPL-242394).
  */
 static void test_same_object_for_same_context(void) {
-    jaw_test_reset();
     jobject context =
         jaw_test_fixture("button", STRING_FIXTURE, jaw_test_string("OK"));
     jobject other_context =
@@ -87,7 +85,6 @@ static void test_same_object_for_same_context(void) {
  * label set by JLabel.setLabelFor; Orca reads the selected item as the value.
  */
 static void test_combo_box_name_is_its_label(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture(
         "labeledComboBox",
         "(Ljava/lang/String;Ljava/lang/String;)Ljavax/accessibility/"
@@ -118,7 +115,6 @@ static void test_combo_box_name_is_its_label(void) {
  * then be exposed again.
  */
 static void test_collapsed_state_is_not_exposed(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture(
         "collapsedTreeNode", "()Ljavax/accessibility/AccessibleContext;");
     AtkObject *object = jaw_test_atk_object(context);
@@ -149,7 +145,6 @@ static void test_collapsed_state_is_not_exposed(void) {
  * object of the returned menu.
  */
 static void test_menu_item_parent_is_menu(void) {
-    jaw_test_reset();
     jobject contexts = jaw_test_fixture(
         "menuWithItem", "()[Ljavax/accessibility/AccessibleContext;");
     jobject menu_context = jaw_test_array_element(contexts, 0);
@@ -180,7 +175,6 @@ static void test_menu_item_parent_is_menu(void) {
  * with jaw_util_jstring_to_utf8_gchar.
  */
 static void test_name_with_non_bmp_character(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture("label", STRING_FIXTURE,
                                        jaw_test_string(NON_BMP_TEXT));
     AtkObject *object = jaw_test_atk_object(context);
@@ -200,7 +194,6 @@ static void test_name_with_non_bmp_character(void) {
  * conversion as jaw_object_get_name, see test_name_with_non_bmp_character.
  */
 static void test_description_with_non_bmp_character(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture("buttonWithDescription", STRING_FIXTURE,
                                        jaw_test_string(NON_BMP_TEXT));
     AtkObject *object = jaw_test_atk_object(context);
@@ -215,19 +208,19 @@ static void test_description_with_non_bmp_character(void) {
 int main(int argc, char **argv) {
     jaw_test_init(&argc, &argv);
 
-    g_test_add_func("/jaw/smoke/button", test_smoke_button);
-    g_test_add_func("/jaw/impl/same-object-for-same-context",
-                    test_same_object_for_same_context);
-    g_test_add_func("/jaw/object/combo-box-name-is-its-label",
-                    test_combo_box_name_is_its_label);
-    g_test_add_func("/jaw/object/collapsed-state-is-not-exposed",
-                    test_collapsed_state_is_not_exposed);
-    g_test_add_func("/jaw/object/menu-item-parent-is-menu",
-                    test_menu_item_parent_is_menu);
-    g_test_add_func("/jaw/object/name-with-non-bmp-character",
-                    test_name_with_non_bmp_character);
-    g_test_add_func("/jaw/object/description-with-non-bmp-character",
-                    test_description_with_non_bmp_character);
+    jaw_test_add("/jaw/smoke/button", test_smoke_button);
+    jaw_test_add("/jaw/impl/same-object-for-same-context",
+                 test_same_object_for_same_context);
+    jaw_test_add("/jaw/object/combo-box-name-is-its-label",
+                 test_combo_box_name_is_its_label);
+    jaw_test_add("/jaw/object/collapsed-state-is-not-exposed",
+                 test_collapsed_state_is_not_exposed);
+    jaw_test_add("/jaw/object/menu-item-parent-is-menu",
+                 test_menu_item_parent_is_menu);
+    jaw_test_add("/jaw/object/name-with-non-bmp-character",
+                 test_name_with_non_bmp_character);
+    jaw_test_add("/jaw/object/description-with-non-bmp-character",
+                 test_description_with_non_bmp_character);
 
     return jaw_test_run();
 }
