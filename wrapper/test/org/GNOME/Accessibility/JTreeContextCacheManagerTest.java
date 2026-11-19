@@ -71,6 +71,17 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         return onEdt(context::getAccessibleName);
     }
 
+    /**
+     * Checks: asking the tree for the same child twice returns two different node contexts. No wrapper code runs:
+     * the test pins the Swing behavior that makes the cache necessary.
+     * <p>
+     * Why (Swing): {@code AccessibleJTree.getAccessibleChild} creates a new {@code AccessibleJTreeNode} on every
+     * call. The native layer keeps one ATK object per {@code AccessibleContext}, so without the cache the same
+     * node reaches an assistive technology as a new object each time.
+     * <p>
+     * May change when: the JDK starts to return the same node object. This test then fails, which is the signal
+     * that the reason for {@link JTreeContextCacheManager} is gone and the cache can be simplified or removed.
+     */
     @Test
     void precondition_swingCreatesANewNodeContextOnEveryRequest() throws Exception {
         onEdt(() -> {
@@ -80,12 +91,26 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         });
     }
 
+    /**
+     * Checks: the active descendant of a tree is the context of its selected node, at any depth.
+     * <p>
+     * Why (wrapper): the wrapper takes the node from the selection of the tree and walks to it from the tree
+     * context. It does not use the node that Swing puts into the active-descendant event, which is a new object
+     * for every event.
+     */
     @Test
     void resolvesTheSelectedNode() throws Exception {
         assertEquals("a1", name(select(pathA1)));
         assertEquals("b", name(select(pathB)));
     }
 
+    /**
+     * Checks: a node keeps its context: selecting another node and coming back returns the same object.
+     * <p>
+     * Why (wrapper, Orca): the native layer finds the ATK object of a node by its {@code AccessibleContext}, so
+     * a new context is a new object for an assistive technology. Before the cache, Orca announced the whole path
+     * from the root again on every move (IJPL-242394).
+     */
     @Test
     void returnsTheSameContextForTheSamePath() throws Exception {
         AccessibleContext first = select(pathA1);
@@ -95,6 +120,18 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         assertSame(first, second);
     }
 
+    /**
+     * Checks: two sibling nodes report the same parent object, and it is the context that the cache returns for
+     * the parent node itself.
+     * <p>
+     * Why (Swing, Orca): an {@code AccessibleJTreeNode} that was not created by its parent builds a new parent
+     * node when it is asked for one. The wrapper therefore walks down from the tree with
+     * {@code getAccessibleChild}, which links each node to the cached context of its parent. With a new parent
+     * object for every node, Orca announced the whole path from the root again on every move (IJPL-242394).
+     * <p>
+     * May change when: Orca stops announcing the path again when the parent of the same node is a new object.
+     * The motivation for the shared parent is then gone, but the expectation is still a valid contract.
+     */
     @Test
     void sharesTheParentContextBetweenSiblings() throws Exception {
         AccessibleContext a1 = select(pathA1);
@@ -108,6 +145,14 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         });
     }
 
+    /**
+     * Checks: with a visible root, the root node itself can be the active descendant, and it is the parent of the
+     * first-level nodes.
+     * <p>
+     * Why (Swing): the accessible hierarchy of a tree depends on {@code isRootVisible}. With a visible root the
+     * only child of the tree is the root node; with a hidden root the children of the root hang on the tree
+     * directly. The wrapper skips the root in its walk when it is hidden, and this test covers the other branch.
+     */
     @Test
     void resolvesTheRootWhenItIsVisible() throws Exception {
         onEdt(() -> {
@@ -124,6 +169,15 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         });
     }
 
+    /**
+     * Checks: after the model of the tree is replaced, a node with the same name at the same place gets a new
+     * context, which describes the node of the new model. The test pins this result, not the clearing of the
+     * cache: the new model consists of new node objects, so its paths are not equal to the cached ones and the
+     * lookup misses even without the invalidation.
+     * <p>
+     * Why (wrapper): a cached context holds a node of the old model and must not be reported for the new one.
+     * The cache drops all contexts when the tree gets another model object.
+     */
     @Test
     void invalidatesTheCacheWhenTheModelChanges() throws Exception {
         AccessibleContext before = select(pathA1);
@@ -141,6 +195,13 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         assertEquals("a1", name(after));
     }
 
+    /**
+     * Checks: after the visibility of the root changes, the same path gets a new context.
+     * <p>
+     * Why (Swing, wrapper): the root visibility changes the accessible hierarchy: the first-level nodes hang on
+     * the tree while the root is hidden and on the root node while it is visible. A context cached before the
+     * change keeps the old parent chain, so the cache drops all contexts when {@code isRootVisible} changes.
+     */
     @Test
     void invalidatesTheCacheWhenTheRootVisibilityChanges() throws Exception {
         AccessibleContext hiddenRoot = select(pathA1);
@@ -155,11 +216,27 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         assertEquals("a1", name(visibleRoot));
     }
 
+    /**
+     * Checks: a tree without a selection has no active descendant: the result is {@code null}, not a default
+     * node.
+     * <p>
+     * Why (wrapper): {@code null} makes the wrapper skip the active-descendant signal when such a tree gets the
+     * focus. The tree still gets its focus notification, and no node that the user did not select is reported.
+     */
     @Test
     void returnsNullWithoutSelection() throws Exception {
         assertNull(onEdt(() -> JTreeContextCacheManager.resolveActiveDescendant(tree, treeContext)));
     }
 
+    /**
+     * Checks: the active descendant can be resolved from the context of the tree alone, but only after the
+     * wrapper has seen the tree; before that the result is {@code null}. Both ways return the same cached context.
+     * <p>
+     * Why (Swing, wrapper): Swing fires the active-descendant change with the {@code AccessibleContext} of the
+     * tree as the event source, while the wrapper needs the {@code JTree} for its selection path. The wrapper
+     * keeps a registry from the context to the tree and fills it when the tree gets the focus. For a tree it has
+     * not seen, {@code null} makes the property change listener fall back to the node from the Swing event.
+     */
     @Test
     void resolvesTheTreeThroughItsContextAfterItWasRemembered() throws Exception {
         onEdt(() -> {
@@ -172,6 +249,13 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
         });
     }
 
+    /**
+     * Checks: the wrapper creates a native resource for the resolved node and for its parent node.
+     * <p>
+     * Why (wrapper): the native layer looks up the ATK object of a context that it receives in a signal and finds
+     * none unless the Java layer has registered the context with {@code AtkWrapperDisposer} before. The cache
+     * registers every context on the path it walks, so the parent is covered as well.
+     */
     @Test
     void registersTheResolvedContextsWithTheNativeLayer() throws Exception {
         AccessibleContext a1 = select(pathA1);

@@ -80,6 +80,17 @@ class JTreeSignalsTest extends AtkTestBase {
 
     // IJPL-242394
 
+    /**
+     * Checks: when a tree with a selected node gets the focus, the native layer receives exactly two calls: the
+     * focus notification for the tree, then {@code active-descendant-changed} for the tree with the cached
+     * context of the selected node.
+     * <p>
+     * Why (Swing, wrapper): the keyboard focus belongs to the {@code JTree}; its nodes are not components and
+     * never get it. Swing fires the active-descendant change only when the lead selection path changes, not when
+     * the tree gets the focus, so the wrapper sends the signal itself. Without it, nothing tells an assistive
+     * technology which node is active at the moment the tree gets the focus. The node must be the cached
+     * context, see {@link JTreeContextCacheManagerTest}.
+     */
     @Test
     void focusingTheTreeEmitsFocusAndTheSelectedNodeAsActiveDescendant() throws Exception {
         onEdt(() -> {
@@ -105,6 +116,19 @@ class JTreeSignalsTest extends AtkTestBase {
         assertSame(cachedContext(pathA1), activeDescendantOf(activeDescendant.get(0)));
     }
 
+    /**
+     * Checks: while the user moves in a focused tree, every selection change emits one
+     * {@code active-descendant-changed}; the same node arrives as the same object each time, and two siblings
+     * arrive with the same parent object.
+     * <p>
+     * Why (Swing, Orca): Swing puts a new {@code AccessibleJTreeNode} into every active-descendant event. The
+     * wrapper replaces it with the cached context of the selected node. With new objects on every move, Orca
+     * announced the whole path from the root again (IJPL-242394). This test covers the way from the Swing event
+     * to the signal; {@link JTreeContextCacheManagerTest} covers the cache.
+     * <p>
+     * May change when: the JDK starts to reuse the node objects of its events, or Orca stops announcing the path
+     * again for a new object of the same node. Either removes the reason for the cache; the expectation stays.
+     */
     @Test
     void navigationEmitsStableNodeContexts() throws Exception {
         onEdt(() -> {
@@ -138,6 +162,18 @@ class JTreeSignalsTest extends AtkTestBase {
 
     // Upstream fix 796cbec "Fix: Orca doesn't announce root in JTree"
 
+    /**
+     * Checks: a selection change in a tree does not reach the native layer as {@code object:selection-changed}.
+     * <p>
+     * Why (Swing, Orca): Swing fires both a selection change and an active-descendant change when the selected
+     * node changes. With both signals Orca did not announce the root of the tree, see
+     * https://gitlab.gnome.org/GNOME/orca/-/issues/552 and the comment in the property change listener of
+     * {@code AtkWrapper}. The wrapper drops the selection signal of a tree, so that
+     * {@code object:active-descendant-changed} alone moves the focus of Orca to the node.
+     * <p>
+     * May change when: Orca announces the root with both signals. The reason for the workaround is then gone: the
+     * wrapper can emit the signal again, and this test has to be inverted or removed with it.
+     */
     @Test
     void selectionChangeOfTheTreeIsNotEmitted() throws Exception {
         onEdt(() -> {

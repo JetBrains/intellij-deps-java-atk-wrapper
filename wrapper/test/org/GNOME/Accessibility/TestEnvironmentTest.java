@@ -29,11 +29,30 @@ import org.junit.jupiter.api.Test;
  */
 class TestEnvironmentTest {
 
+    /**
+     * Checks: the test JVM runs in headless mode.
+     * <p>
+     * Why (test setup): the tests build Swing components without showing them and must run on a build machine
+     * without a display. {@code make check} passes {@code -Djava.awt.headless=true}; this test reports it with a
+     * clear message when the tests are started in another way without the option.
+     */
     @Test
     void runsHeadless() {
         assertTrue(GraphicsEnvironment.isHeadless(), "the tests must run with -Djava.awt.headless=true");
     }
 
+    /**
+     * Checks: the bundled native library is not a resource on the test class path.
+     * <p>
+     * Why (test setup): the static initializer of {@link AtkWrapper} loads the library from the class path and
+     * enables accessibility when it finds an AT-SPI bus. The tests assume that this did not happen: they replace
+     * the native calls with a {@link RecordingNativeBridge} and pass fake native handles. The test looks for the
+     * resource, not for the disabled accessibility, because accessibility also stays disabled when the library
+     * loads and no bus is found.
+     * <p>
+     * May change when: the wrapper finds or loads the native library in another way than as a class path
+     * resource. The check has to follow, or it passes while the library is loaded.
+     */
     @Test
     void nativeLibraryIsNotOnTheClassPath() {
         String resourcePath = AtkWrapper.getBundledNativeLibraryResourcePath();
