@@ -170,24 +170,22 @@ class JTreeContextCacheManagerTest extends AtkTestBase {
     }
 
     /**
-     * Checks: after the model of the tree is replaced, a node with the same name at the same place gets a new
-     * context, which describes the node of the new model. The test pins this result, not the clearing of the
-     * cache: the new model consists of new node objects, so its paths are not equal to the cached ones and the
-     * lookup misses even without the invalidation.
+     * Checks: after the tree gets another model object, a path that was cached before gets a new context, even
+     * when the new model holds the same nodes and the path is equal to the cached one.
      * <p>
-     * Why (wrapper): a cached context holds a node of the old model and must not be reported for the new one.
-     * The cache drops all contexts when the tree gets another model object.
+     * Why (Swing, wrapper): an {@code AccessibleJTreeNode} keeps the model that the tree had when the node was
+     * created, so a cached context would answer for the old model. The cache is keyed by {@code TreePath}, which
+     * compares the nodes, and a new model with the same nodes would hit it. Only the invalidation, which drops
+     * all contexts when the model object changes, makes the lookup miss. A model with new nodes would not test
+     * it: its paths miss the cache anyway.
      */
     @Test
     void invalidatesTheCacheWhenTheModelChanges() throws Exception {
         AccessibleContext before = select(pathA1);
 
-        DefaultMutableTreeNode newRoot = createTreeModelRoot();
-        DefaultMutableTreeNode newA = (DefaultMutableTreeNode) newRoot.getChildAt(0);
-        TreePath newPathA1 = new TreePath(new Object[] {newRoot, newA, newA.getChildAt(0)});
         AccessibleContext after = onEdt(() -> {
-            tree.setModel(new DefaultTreeModel(newRoot));
-            tree.setSelectionPath(newPathA1);
+            tree.setModel(new DefaultTreeModel((DefaultMutableTreeNode) pathA1.getPathComponent(0)));
+            tree.setSelectionPath(pathA1);
             return JTreeContextCacheManager.resolveActiveDescendant(tree, treeContext);
         });
 
