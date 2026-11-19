@@ -1,6 +1,6 @@
 SUBDIRS=wrapper jni
 
-EXTRA_DIST = JavaInfo.java HACKING README.md COPYING.LESSER wrapper/test
+EXTRA_DIST = JavaInfo.java HACKING README.md COPYING.LESSER wrapper/test tests/atspi
 
 ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
 
@@ -53,9 +53,26 @@ check-local:
 	@echo "Skipping the Java unit tests: they are disabled by configure, see --enable-java-tests."
 endif
 
+# AT-SPI integration tests, run by `make check-atspi`, not by `make check`: they start a Swing
+# application with the wrapper and look at it through the AT-SPI bus, so they need an X server, a
+# session bus and Python with libatspi. tests/atspi/run.sh starts what a run needs and lists the
+# packages. The report goes to JUNIT_REPORTS_DIR, next to the reports of the unit tests.
+ATSPI_TESTS_DIR = $(abs_top_builddir)/tests/atspi
+
+check-atspi: all
+	JAVA='$(JAVA)' JAVAC='$(JAVAC)' \
+	JAW_JAR='$(abs_top_builddir)/wrapper/$(JAW_JAR_NAME)' \
+	JUNIT_REPORTS_DIR='$(JUNIT_REPORTS_DIR)' \
+	ATSPI_BUILD_DIR='$(ATSPI_TESTS_DIR)/build' \
+	ATSPI_LOG_DIR='$(ATSPI_TESTS_DIR)/logs' \
+	$(SHELL) $(top_srcdir)/tests/atspi/run.sh
+
+.PHONY: check-atspi
+
 clean-local:
 	$(RM) *.class
 	rm -rf $(TEST_CLASSES_DIR)
+	rm -rf $(ATSPI_TESTS_DIR)/build $(ATSPI_TESTS_DIR)/logs
 	rm -f $(JUNIT_REPORTS_DIR)/TEST-*.xml
 	rmdir $(JUNIT_REPORTS_DIR) 2>/dev/null || :
 

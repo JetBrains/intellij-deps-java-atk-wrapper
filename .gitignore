@@ -55,3 +55,7 @@ wrapper/java-atk-wrapper.jar
 /test-classes
 /test-lib
 /test-reports
+
+tests/atspi/build
+tests/atspi/logs
+__pycache__/
