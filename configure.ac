@@ -3,6 +3,8 @@ AC_INIT([java-atk-wrapper],[0.44.0],[https://gitlab.gnome.org/GNOME/java-atk-wra
 : ${CXXFLAGS=""}
 
 AC_CONFIG_AUX_DIR(config)
+dnl The native unit tests run through the TAP driver of automake; automake --add-missing installs it.
+AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AM_INIT_AUTOMAKE([1.11 -Wall foreign])
 
 AM_SILENT_RULES([yes])
@@ -208,6 +210,49 @@ elif test "$j_major_version" = "$min_major_version"; then
   fi
 fi
 
+dnl Native unit tests, run by make check. A test program embeds a JVM, so it links libjvm.so, and it
+dnl needs ATK, which only Linux has.
+AC_ARG_VAR([JVM_LIBDIR], [directory with libjvm.so for the native unit tests, found in JAVA_HOME when not set])
+AC_ARG_ENABLE([native-tests],
+  [AS_HELP_STRING([--enable-native-tests=@<:@yes/no/auto@:>@],
+    [run the native unit tests in make check; auto runs them on Linux with libjvm.so @<:@default=auto@:>@])],
+  [], [enable_native_tests=auto])
+if test -z "$JVM_LIBDIR"; then
+  for jvm_dir in "$JAVA_HOME/lib/server" "$JDK_SRC/lib/server"; do
+    if test -f "$jvm_dir/libjvm.so"; then
+      JVM_LIBDIR=$jvm_dir
+      break
+    fi
+  done
+fi
+AC_MSG_CHECKING([for libjvm.so])
+AS_IF([test -n "$JVM_LIBDIR" && test -f "$JVM_LIBDIR/libjvm.so"],
+  [AC_MSG_RESULT([$JVM_LIBDIR]); jvm_available=yes],
+  [AC_MSG_RESULT([no]); jvm_available=no])
+case "$host_os" in
+  linux*) native_tests_available=$jvm_available ;;
+  *) native_tests_available=no ;;
+esac
+case "$enable_native_tests" in
+  yes)
+    if test "$native_tests_available" = no; then
+      AC_MSG_ERROR([--enable-native-tests needs Linux and libjvm.so; set JVM_LIBDIR to the directory of libjvm.so])
+    fi
+    ;;
+  no)
+    ;;
+  auto)
+    enable_native_tests=$native_tests_available
+    if test "$enable_native_tests" = no; then
+      AC_MSG_WARN([make check skips the native unit tests: they need Linux and libjvm.so, see JVM_LIBDIR])
+    fi
+    ;;
+  *)
+    AC_MSG_ERROR([bad value $enable_native_tests for --enable-native-tests])
+    ;;
+esac
+AM_CONDITIONAL(NATIVE_TESTS, test "$enable_native_tests" = yes)
+
 XPROP_PATH=${PATH}:/usr/X11/bin
 AC_PATH_PROG(XPROP,xprop,,${XPROP_PATH})
 if test -z "$XPROP"; then
@@ -270,6 +315,7 @@ AC_CONFIG_FILES([
     Makefile
     jni/Makefile
     jni/src/Makefile
+    jni/tests/Makefile
     wrapper/Makefile
     wrapper/org/Makefile
     wrapper/org/GNOME/Makefile
@@ -287,6 +333,7 @@ Build configuration:
        Source code location:                   ${srcdir}
        Modular jar:                            ${enable_modular_jar}
        Java unit tests:                        ${enable_java_tests}
+       Native unit tests:                      ${enable_native_tests}
        Compiler:                               ${CC}
        JDK src:                                ${JDK_SRC}
        JAVA home:                              ${JAVA_HOME}

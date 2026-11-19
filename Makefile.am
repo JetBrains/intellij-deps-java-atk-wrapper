@@ -36,10 +36,12 @@ $(JUNIT_DOWNLOAD_DIR)/$(JUNIT_JAR_NAME):
 	mv $@.tmp $@
 
 # JUNIT_REPORTS_DIR may be a directory with other files, so only the reports JUnit writes are removed.
+# check-local runs after the subdirectories, so it must not remove the TEST-native-*.xml reports
+# that jni/tests wrote before; the JUnit Platform names its reports TEST-junit-*.xml.
 if JAVA_TESTS
 check-local: $(JUNIT_CONSOLE_JAR)
 	rm -rf $(TEST_CLASSES_DIR)
-	rm -f $(JUNIT_REPORTS_DIR)/TEST-*.xml
+	rm -f $(JUNIT_REPORTS_DIR)/TEST-junit-*.xml
 	$(MKDIR_P) $(TEST_CLASSES_DIR)
 	$(JAVAC) $(JAVACFLAGS) -cp $(JUNIT_CONSOLE_JAR) -d $(TEST_CLASSES_DIR) $(JAW_MAIN_SOURCES) $(JAW_TEST_SOURCES)
 	$(JAVA) -Djava.awt.headless=true -jar $(JUNIT_CONSOLE_JAR) execute \

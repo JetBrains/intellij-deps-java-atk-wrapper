@@ -40,6 +40,13 @@ Makefile.in
 /stamp-h1
 jni/src/.libs
 jni/src/.deps
+jni/tests/.libs
+jni/tests/.deps
+jni/tests/classes
+jni/tests/classes.stamp
+jni/tests/test-jaw-object
+jni/tests/*.log
+jni/tests/*.trs
 
 wrapper/org/GNOME/Accessibility/AtkWrapper.java
 wrapper/java-atk-wrapper.jar
