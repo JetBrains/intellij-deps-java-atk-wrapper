@@ -37,7 +37,6 @@
  * copy of the library or the AT-SPI bridge.
  */
 static void test_smoke_button(void) {
-    jaw_test_reset();
     jobject context =
         jaw_test_fixture("button", STRING_FIXTURE, jaw_test_string("OK"));
     AtkObject *object = jaw_test_atk_object(context);
@@ -59,7 +58,6 @@ static void test_smoke_button(void) {
  * a JTree stable (IJPL-242394).
  */
 static void test_same_object_for_same_context(void) {
-    jaw_test_reset();
     jobject context =
         jaw_test_fixture("button", STRING_FIXTURE, jaw_test_string("OK"));
     jobject other_context =
@@ -87,7 +85,6 @@ static void test_same_object_for_same_context(void) {
  * label set by JLabel.setLabelFor; Orca reads the selected item as the value.
  */
 static void test_combo_box_name_is_its_label(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture(
         "labeledComboBox",
         "(Ljava/lang/String;Ljava/lang/String;)Ljavax/accessibility/"
@@ -118,7 +115,6 @@ static void test_combo_box_name_is_its_label(void) {
  * then be exposed again.
  */
 static void test_collapsed_state_is_not_exposed(void) {
-    jaw_test_reset();
     jobject context = jaw_test_fixture(
         "collapsedTreeNode", "()Ljavax/accessibility/AccessibleContext;");
     AtkObject *object = jaw_test_atk_object(context);
@@ -149,7 +145,6 @@ static void test_collapsed_state_is_not_exposed(void) {
  * object of the returned menu.
  */
 static void test_menu_item_parent_is_menu(void) {
-    jaw_test_reset();
     jobject contexts = jaw_test_fixture(
         "menuWithItem", "()[Ljavax/accessibility/AccessibleContext;");
     jobject menu_context = jaw_test_array_element(contexts, 0);
@@ -165,20 +160,18 @@ static void test_menu_item_parent_is_menu(void) {
     g_assert_cmpint(atk_object_get_role(parent), ==, ATK_ROLE_MENU);
 }
 
-
-
 int main(int argc, char **argv) {
     jaw_test_init(&argc, &argv);
 
-    g_test_add_func("/jaw/smoke/button", test_smoke_button);
-    g_test_add_func("/jaw/impl/same-object-for-same-context",
-                    test_same_object_for_same_context);
-    g_test_add_func("/jaw/object/combo-box-name-is-its-label",
-                    test_combo_box_name_is_its_label);
-    g_test_add_func("/jaw/object/collapsed-state-is-not-exposed",
-                    test_collapsed_state_is_not_exposed);
-    g_test_add_func("/jaw/object/menu-item-parent-is-menu",
-                    test_menu_item_parent_is_menu);
+    jaw_test_add("/jaw/smoke/button", test_smoke_button);
+    jaw_test_add("/jaw/impl/same-object-for-same-context",
+                 test_same_object_for_same_context);
+    jaw_test_add("/jaw/object/combo-box-name-is-its-label",
+                 test_combo_box_name_is_its_label);
+    jaw_test_add("/jaw/object/collapsed-state-is-not-exposed",
+                 test_collapsed_state_is_not_exposed);
+    jaw_test_add("/jaw/object/menu-item-parent-is-menu",
+                 test_menu_item_parent_is_menu);
 
     return jaw_test_run();
 }

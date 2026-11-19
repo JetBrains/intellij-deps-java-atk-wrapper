@@ -26,8 +26,12 @@
  * loaded.
  *
  * A process can create only one JVM, so all test cases of a program share it.
- * Each test builds its own components through NativeTestFixtures and calls
- * jaw_test_reset() first.
+ * Each test builds its own components through NativeTestFixtures; jaw_test_add
+ * resets the static state of the Java layer before each test.
+ *
+ * The JVM always runs with -Xcheck:jni. A message of the JNI checks is reported
+ * for the test during which the JVM printed it; with JAW_TEST_JNI_WARNINGS=fail
+ * in the environment it fails that test.
  */
 
 #ifndef _JAW_TEST_JVM_H_
@@ -43,18 +47,24 @@ G_BEGIN_DECLS
  * Reads JAW_TEST_CLASSPATH (the compiled Java layer and fixtures) and
  * JAW_TEST_LIBRARY (the path of libatk-wrapper.so) from the environment, which
  * make check sets. JAW_TEST_JVM_OPTIONS adds JVM options, for example
- * -Xcheck:jni.
+ * -Xlog:jni+resolve=debug.
  */
 void jaw_test_init(int *argc, char ***argv);
+
+typedef void (*JawTestFunc)(void);
+
+/*
+ * Registers a test case, like g_test_add_func. Around the test it resets the
+ * state that the Java layer keeps between events, gives the test a JNI local
+ * frame of its own, and reports the messages of -Xcheck:jni.
+ */
+void jaw_test_add(const char *path, JawTestFunc function);
 
 /* Runs the registered tests and exits the process with their status. */
 int jaw_test_run(void);
 
 /* The JNI environment of the test thread. */
 JNIEnv *jaw_test_env(void);
-
-/* Forgets the static state that the Java layer keeps between events. */
-void jaw_test_reset(void);
 
 /*
  * Calls the static method of NativeTestFixtures with the given name and JNI

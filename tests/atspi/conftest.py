@@ -166,10 +166,18 @@ def find_frame():
 
 
 class RunningApp:
-    def __init__(self, process, application, frame):
+    def __init__(self, process, application, frame, output_path):
         self.process = process
         self.application = application
         self.frame = frame
+        # Everything the JVM and the native layer printed: -Xcheck:jni, the sanitizers, g_debug, Java logging.
+        self.output_path = output_path
+
+    def output_lines_with(self, messages):
+        """Returns the lines of the output of the application that contain one of `messages`."""
+        with open(self.output_path, errors="replace") as output:
+            return [line.rstrip("\n") for line in output if any(message in line for message in messages)]
+
 
 
 @pytest.fixture(scope="session")
@@ -191,11 +199,14 @@ def app(journal):
     command = [
         _environment("ATSPI_JAVA"),
         "-cp", _environment("ATSPI_CLASSPATH"),
+        # Always on: the tests also check how the native layer uses JNI with the real threads of an application.
+        "-Xcheck:jni",
         "-Djavax.accessibility.assistive_technologies=" + WRAPPER_CLASS,
         "AtspiTestApp",
     ]
     # The wrapper writes jaw_log.txt to the working directory when JAW_DEBUG is set.
-    with open(os.path.join(log_dir, "app-output.log"), "wb") as output:
+    output_path = os.path.join(log_dir, "app-output.log")
+    with open(output_path, "wb") as output:
         process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, cwd=log_dir)
         try:
             def frame_or_exit():
@@ -210,7 +221,7 @@ def app(journal):
                 timeout=STARTUP_TIMEOUT_S,
                 journal=journal,
             )
-            yield RunningApp(process, application, frame)
+            yield RunningApp(process, application, frame, output_path)
         finally:
             process.terminate()
             try:

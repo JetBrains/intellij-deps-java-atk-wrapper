@@ -6,6 +6,10 @@
 # bundled native library as a class path resource, and the static initializer of AtkWrapper
 # would load a second copy of it from there. configure --disable-native-tests turns the tests
 # off.
+#
+# The test JVM always runs with -Xcheck:jni. JAW_TEST_JNI_WARNINGS=fail, in the environment or
+# on the make command line, makes a message of the JNI checks fail the test that caused it;
+# without it the messages are only reported in the log.
 
 EXTRA_DIST = \
 	java/org/GNOME/Accessibility/NativeTestFixtures.java \
