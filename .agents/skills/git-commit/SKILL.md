@@ -31,7 +31,14 @@ Write a body unless the change is mechanical (a typo, an import, a format pass).
 - The first paragraph is the lead: the new state and its cause, in 1-3 sentences.
 - Then one paragraph per decision: what you chose, what you did not choose, and why. Write code names in
   backticks.
-- Then `Evidence:` and `Left out:`, each on its own line right before its list.
+- Then `Evidence:`, on its own line right before its list.
+- Write each paragraph as one line, with no line breaks inside it. Separate paragraphs with one blank line. Do not
+  wrap a paragraph at a fixed width: the viewer wraps it.
+
+## Protected files
+
+Never touch `docs/fork-notes.md`: do not edit, stage, commit, revert, move or delete it, even when a change or a
+user request seems to need it. If it shows up in `git status`, leave it out of the commit and tell the user.
 
 ## Trailers
 
