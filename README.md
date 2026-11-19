@@ -72,12 +72,22 @@ make check JUNIT_CONSOLE_JAR=/path/to/junit-platform-console-standalone-1.14.4.j
 
 `MAVEN_REPOSITORY_URL=<url>` downloads the jar from a Maven mirror instead; the SHA-256 check still applies.
 JUnit XML reports go to `test-reports/`, or to `JUNIT_REPORTS_DIR=<dir>`; `make check` and `make clean` remove only
-the `TEST-*.xml` files there. `configure` takes these variables from the environment, and `make check` also accepts
-them on the command line.
+the `TEST-*.xml` files of the tests there. A relative `<dir>` is relative to the top build directory. `configure`
+takes these variables from the environment, and `make check` also accepts them on the command line.
 
 The download needs `curl` and `sha256sum` (or `shasum`). `configure --enable-java-tests=auto`, the default, turns the
 tests off with a warning when neither they nor `JUNIT_CONSOLE_JAR` are available; `--enable-java-tests=yes` makes this
 an error, and `--disable-java-tests` turns the tests off, for example in an offline package build.
+
+`make check` also runs the native unit tests in `jni/tests/` with GLib testing. A test program embeds a headless JVM,
+loads `libatk-wrapper.so` into it and checks the ATK objects that the native layer builds for Swing components: their
+names, roles, states and parents, as the AT-SPI bridge reads them. The calls between C and Java are real JNI calls;
+the AT-SPI bridge is never loaded, so the tests need no display and no AT-SPI bus. They need Linux, ATK and
+`libjvm.so`, which `configure` looks for in `JAVA_HOME/lib/server`; `JVM_LIBDIR=<dir>` points it elsewhere.
+`--enable-native-tests=auto`, the default, turns the tests off with a warning when one of them is missing, for
+example on macOS; `--enable-native-tests=yes` makes this an error, and `--disable-native-tests` turns them off. Each
+test program writes `TEST-native-<program>.xml` next to the Java reports. `JAW_TEST_JVM_OPTIONS` adds JVM options to
+a run, for example `make check JAW_TEST_JVM_OPTIONS=-Xcheck:jni`.
 
 ## Upstream Project
 
