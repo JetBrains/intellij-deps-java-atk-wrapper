@@ -954,11 +954,15 @@ public class AtkWrapper {
         return false;
     }
 
-    /** Forgets every focused context remembered by {@link #dispatchFocusEvent}. Unit tests call it between tests. */
+    /**
+     * Forgets every focused context remembered by {@link #dispatchFocusEvent} and the last reported active
+     * descendant. Unit tests call it between tests.
+     */
     static void forgetFocusHistory() {
         oldSourceContextRef = null;
         savedSourceContextRef = null;
         oldPaneContextRef = null;
+        lastActiveDescendant = null;
     }
 
     static void dispatchFocusEvent(Object eventSource) {
