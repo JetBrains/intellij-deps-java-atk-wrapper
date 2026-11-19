@@ -22,8 +22,11 @@ the public ATK API: `atk_object_get_name`, `atk_object_get_role`, `atk_object_re
 
 - Assert on what the AT-SPI bridge reads from ATK, not on internal C functions. Call a function of `jni/src/`
   directly only when it is the entry point, like `jaw_impl_find_instance`.
-- One JVM per process: all test cases of a program share it. Call `jaw_test_reset()` first in every test, build
-  new components for every test, and do not rely on the order of the test cases.
+- One JVM per process: all test cases of a program share it. Register a test with `jaw_test_add`, not with
+  `g_test_add_func`: it resets the static state of the Java layer before the test and gives it a JNI local frame.
+  Build new components for every test, and do not rely on the order of the test cases.
+- The JVM always runs with `-Xcheck:jni`, and `jaw_test_add` reports a message of the JNI checks for the test
+  that caused it. Treat such a message as a bug in `jni/src/`, or in the test if the test made the JNI call.
 - Build components in a fixture method, which runs on the EDT. Call ATK from the test thread, the way the GLib
   thread calls it in production; the wrapper moves to the EDT itself.
 - Keep the returned contexts as JNI local references until the end of the test: the disposer releases the ATK
@@ -44,8 +47,11 @@ The tests need Linux, ATK and `libjvm.so`; on macOS `configure` turns them off.
 
 ```bash
 ./autogen.sh && make && make check
-make check JAW_TEST_JVM_OPTIONS=-Xcheck:jni      # also check the JNI calls
+make check JAW_TEST_JNI_WARNINGS=fail            # a message of -Xcheck:jni fails its test
 ```
+
+For memory errors and undefined behavior, build a separate copy of the sources with
+`./autogen.sh --enable-sanitizers` and run `make check` there. Never install or package that build.
 
 The results are in `jni/tests/test-jaw-object.log` and in `test-reports/TEST-native-*.xml`. A program that
 crashes gets a failed test case in its report.
