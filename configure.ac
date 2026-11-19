@@ -1,6 +1,8 @@
 AC_PREREQ(2.63)
 AC_INIT([java-atk-wrapper],[0.44.0],[https://gitlab.gnome.org/GNOME/java-atk-wrapper/issues/new])
 : ${CXXFLAGS=""}
+dnl Whether the user gave CFLAGS. AC_PROG_CC sets a default, and --enable-sanitizers needs another one.
+jaw_user_cflags=${CFLAGS+set}
 
 AC_CONFIG_AUX_DIR(config)
 dnl The native unit tests run through the TAP driver of automake; automake --add-missing installs it.
@@ -254,6 +256,40 @@ case "$enable_native_tests" in
 esac
 AM_CONDITIONAL(NATIVE_TESTS, test "$enable_native_tests" = yes)
 
+dnl Sanitizers, for the native unit tests and the AT-SPI integration tests. Such a build is for tests only:
+dnl its library needs the AddressSanitizer runtime in the process, so it must never be packaged or installed.
+AC_ARG_ENABLE([sanitizers],
+  [AS_HELP_STRING([--enable-sanitizers],
+    [build the native library and its tests with AddressSanitizer and UndefinedBehaviorSanitizer; for tests only])],
+  [], [enable_sanitizers=no])
+SANITIZER_LDFLAGS=
+ASAN_RUNTIME=
+if test "$enable_sanitizers" = yes; then
+  SANITIZER_LDFLAGS="-fsanitize=address,undefined"
+  AX_CHECK_LINK_FLAG([$SANITIZER_LDFLAGS], [],
+    [AC_MSG_ERROR([--enable-sanitizers: $CC cannot link with $SANITIZER_LDFLAGS])])
+  dnl -O1 and the frame pointer keep the stack traces of the reports readable. A compile line has CFLAGS
+  dnl behind JAW_CFLAGS, so -O1 must be in CFLAGS: the default -O2 there would win. CFLAGS of the user stay.
+  dnl An error of UndefinedBehaviorSanitizer ends the process, so that a test fails on it.
+  if test "x$jaw_user_cflags" != xset; then
+    CFLAGS="-g -O1"
+  fi
+  JAW_CFLAGS="$JAW_CFLAGS $SANITIZER_LDFLAGS -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
+  LIB_ATK_WRAPPER_LD_FLAGS="$LIB_ATK_WRAPPER_LD_FLAGS $SANITIZER_LDFLAGS"
+  dnl A JVM that loads the library is not built with AddressSanitizer, so the runtime has to be preloaded.
+  AC_MSG_CHECKING([for the AddressSanitizer runtime])
+  ASAN_RUNTIME=`$CC -print-file-name=libasan.so`
+  case "$ASAN_RUNTIME" in
+    /*) AC_MSG_RESULT([$ASAN_RUNTIME]) ;;
+    *) AC_MSG_RESULT([no]); AC_MSG_ERROR([--enable-sanitizers: $CC does not know where libasan.so is]) ;;
+  esac
+elif test "$enable_sanitizers" != no; then
+  AC_MSG_ERROR([bad value $enable_sanitizers for --enable-sanitizers])
+fi
+AC_SUBST(SANITIZER_LDFLAGS)
+AC_SUBST(ASAN_RUNTIME)
+AM_CONDITIONAL(SANITIZERS, test "$enable_sanitizers" = yes)
+
 XPROP_PATH=${PATH}:/usr/X11/bin
 AC_PATH_PROG(XPROP,xprop,,${XPROP_PATH})
 if test -z "$XPROP"; then
@@ -335,6 +371,7 @@ Build configuration:
        Modular jar:                            ${enable_modular_jar}
        Java unit tests:                        ${enable_java_tests}
        Native unit tests:                      ${enable_native_tests}
+       Sanitizers:                             ${enable_sanitizers}
        Compiler:                               ${CC}
        JDK src:                                ${JDK_SRC}
        JAVA home:                              ${JAVA_HOME}

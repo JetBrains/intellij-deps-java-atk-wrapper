@@ -26,7 +26,7 @@ import gi
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
-from conftest import FRAME_NAME, wait_for  # noqa: E402
+from conftest import FRAME_NAME, SANITIZER_MESSAGES  # noqa: E402
 
 
 def test_application_is_on_the_bus(app):
@@ -44,3 +44,21 @@ def test_application_is_on_the_bus(app):
     assert app.frame.get_role() == Atspi.Role.FRAME
     assert app.frame.get_name() == FRAME_NAME
 
+
+# The test below looks at what the application did during the tests above, so it must stay the last one of this
+# file: pytest runs the tests of a file in their order.
+
+
+def test_application_is_still_running(app):
+    """Checks: after the tests above the application is alive, and no sanitizer reported an error.
+
+    Why (wrapper, test setup): a fatal error of -Xcheck:jni, a crash in the native layer or an error that a
+    sanitizer found ends the application. The tests above then fail with a D-Bus error that does not name the
+    cause; this test names it. The sanitizers report only when the library is built with
+    `configure --enable-sanitizers`.
+    """
+    errors = app.output_lines_with(SANITIZER_MESSAGES)
+    assert not errors, "a sanitizer reported an error, see app-output.log: " + "; ".join(errors)
+    assert app.process.poll() is None, (
+        "the application exited with code %s during the tests, see app-output.log" % app.process.returncode
+    )
