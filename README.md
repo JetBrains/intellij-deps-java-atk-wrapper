@@ -87,7 +87,16 @@ the AT-SPI bridge is never loaded, so the tests need no display and no AT-SPI bu
 `--enable-native-tests=auto`, the default, turns the tests off with a warning when one of them is missing, for
 example on macOS; `--enable-native-tests=yes` makes this an error, and `--disable-native-tests` turns them off. Each
 test program writes `TEST-native-<program>.xml` next to the Java reports. `JAW_TEST_JVM_OPTIONS` adds JVM options to
-a run, for example `make check JAW_TEST_JVM_OPTIONS=-Xcheck:jni`.
+a run.
+
+The test JVM always runs with `-Xcheck:jni`, so the tests also check how the native layer uses JNI. A message of the
+JNI checks is reported in the log of the test that caused it; `make check JAW_TEST_JNI_WARNINGS=fail` makes it fail
+that test.
+
+`configure --enable-sanitizers` builds the native library and the test programs with AddressSanitizer and
+UndefinedBehaviorSanitizer, and `make check` then fails on a memory error or on undefined behavior in the native
+layer. Such a build is for tests only: build it in a separate copy of the sources, and never install or package its
+library. Leak detection is off, because the JVM never frees much of its memory.
 
 ## Upstream Project
 
