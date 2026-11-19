@@ -47,8 +47,6 @@ struct _JawObject {
     AtkObject parent;
 
     jobject acc_context;
-    jstring jstrName;
-    jstring jstrDescription;
     jstring jstrLocale;
     const gchar *locale;
     AtkStateSet *state_set;

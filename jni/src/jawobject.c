@@ -281,25 +281,9 @@ static void jaw_object_finalize(GObject *gobject) {
         return;
     }
 
-    if (jaw_obj->jstrName != NULL) {
-        if (atk_obj->name != NULL) {
-            (*jniEnv)->ReleaseStringUTFChars(jniEnv, jaw_obj->jstrName,
-                                             atk_obj->name);
-            atk_obj->name = NULL;
-        }
-        (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrName);
-        jaw_obj->jstrName = NULL;
-    }
-
-    if (jaw_obj->jstrDescription != NULL) {
-        if (atk_obj->description != NULL) {
-            (*jniEnv)->ReleaseStringUTFChars(jniEnv, jaw_obj->jstrDescription,
-                                             atk_obj->description);
-            atk_obj->description = NULL;
-        }
-        (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrDescription);
-        jaw_obj->jstrDescription = NULL;
-    }
+    /* jaw_util_jstring_to_utf8_gchar allocated them with GLib. */
+    g_clear_pointer(&atk_obj->name, g_free);
+    g_clear_pointer(&atk_obj->description, g_free);
 
     if (jaw_obj->jstrLocale != NULL) {
         if (jaw_obj->locale != NULL) {
@@ -427,8 +411,6 @@ static const gchar *jaw_object_get_name(AtkObject *atk_obj) {
         return NULL;
     }
 
-    atk_obj->name = (gchar *)ATK_OBJECT_CLASS(parent_class)->get_name(atk_obj);
-
     JAW_GET_OBJECT(atk_obj, NULL); // create local JNI reference `jobject ac`
 
     if (!jaw_object_init_jni_cache(jniEnv)) {
@@ -440,38 +422,20 @@ static const gchar *jaw_object_get_name(AtkObject *atk_obj) {
         jniEnv, cachedObjectAtkObjectClass, cachedObjectGetAccessibleNameMethod,
         ac);
 
-    if (jaw_obj->jstrName != NULL) {
-        if (atk_obj->name != NULL) {
-            (*jniEnv)->ReleaseStringUTFChars(jniEnv, jaw_obj->jstrName,
-                                             atk_obj->name);
-            atk_obj->name = NULL;
-        }
-        (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrName);
-        jaw_obj->jstrName = NULL;
-    }
+    g_clear_pointer(&atk_obj->name, g_free);
 
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
         jaw_jni_clear_exception(jniEnv);
         return NULL;
     }
 
-    if (jstr != NULL) {
-        jaw_obj->jstrName = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
-        if (jaw_obj->jstrName == NULL) {
-            return NULL;
-        }
-        atk_obj->name = (gchar *)(*jniEnv)->GetStringUTFChars(
-            jniEnv, jaw_obj->jstrName, NULL);
-        if ((*jniEnv)->ExceptionCheck(jniEnv) || atk_obj->name == NULL) {
-            jaw_jni_clear_exception(jniEnv);
-
-            // jaw_obj->jstrName != NULL
-            (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrName);
-            jaw_obj->jstrName = NULL;
-
-            return NULL;
-        }
-    }
+    /*
+     * Not GetStringUTFChars: it returns modified UTF-8, where a character
+     * outside the Basic Multilingual Plane is two encoded surrogates, which is
+     * not valid UTF-8 for ATK and D-Bus.
+     */
+    atk_obj->name = jaw_util_jstring_to_utf8_gchar(jniEnv, jstr);
+    (*jniEnv)->DeleteLocalRef(jniEnv, jstr);
 
     if (atk_obj->name != NULL) {
         JAW_DEBUG("-> %s", atk_obj->name);
@@ -549,38 +513,16 @@ static const gchar *jaw_object_get_description(AtkObject *atk_obj) {
         jniEnv, cachedObjectAtkObjectClass,
         cachedObjectGetAccessibleDescriptionMethod, ac);
 
-    if (jaw_obj->jstrDescription != NULL) {
-        if (atk_obj->description != NULL) {
-            (*jniEnv)->ReleaseStringUTFChars(jniEnv, jaw_obj->jstrDescription,
-                                             atk_obj->description);
-            atk_obj->description = NULL;
-        }
-        (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrDescription);
-        jaw_obj->jstrDescription = NULL;
-    }
+    g_clear_pointer(&atk_obj->description, g_free);
 
     if ((*jniEnv)->ExceptionCheck(jniEnv) || jstr == NULL) {
         jaw_jni_clear_exception(jniEnv);
         return NULL;
     }
 
-    if (jstr != NULL) {
-        jaw_obj->jstrDescription = (*jniEnv)->NewGlobalRef(jniEnv, jstr);
-        if (jaw_obj->jstrDescription == NULL) {
-            return NULL;
-        }
-        atk_obj->description = (gchar *)(*jniEnv)->GetStringUTFChars(
-            jniEnv, jaw_obj->jstrDescription, NULL);
-        if ((*jniEnv)->ExceptionCheck(jniEnv) || atk_obj->description == NULL) {
-            jaw_jni_clear_exception(jniEnv);
-
-            // jaw_obj->jstrDescription != NULL
-            (*jniEnv)->DeleteGlobalRef(jniEnv, jaw_obj->jstrDescription);
-            jaw_obj->jstrDescription = NULL;
-
-            return NULL;
-        }
-    }
+    /* Not GetStringUTFChars, see jaw_object_get_name. */
+    atk_obj->description = jaw_util_jstring_to_utf8_gchar(jniEnv, jstr);
+    (*jniEnv)->DeleteLocalRef(jniEnv, jstr);
 
     return atk_obj->description;
 }

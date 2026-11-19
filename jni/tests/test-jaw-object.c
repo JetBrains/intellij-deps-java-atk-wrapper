@@ -165,7 +165,52 @@ static void test_menu_item_parent_is_menu(void) {
     g_assert_cmpint(atk_object_get_role(parent), ==, ATK_ROLE_MENU);
 }
 
+/* "Open " and U+1F4C2, a character outside the Basic Multilingual Plane. */
+#define NON_BMP_TEXT "Open \xF0\x9F\x93\x82"
 
+/*
+ * Checks: a name with a character outside the Basic Multilingual Plane reaches
+ * ATK as valid UTF-8, the same text as in Java.
+ *
+ * Why (wrapper): ATK strings are UTF-8, and the AT-SPI bridge sends them over
+ * D-Bus, which requires valid UTF-8. jaw_object_get_name used to convert the
+ * Java name with GetStringUTFChars, which by the JNI specification returns
+ * modified UTF-8: a character outside the BMP becomes two encoded surrogates of
+ * three bytes each, which is not valid UTF-8. It now converts through UTF-16
+ * with jaw_util_jstring_to_utf8_gchar.
+ */
+static void test_name_with_non_bmp_character(void) {
+    jaw_test_reset();
+    jobject context = jaw_test_fixture("label", STRING_FIXTURE,
+                                       jaw_test_string(NON_BMP_TEXT));
+    AtkObject *object = jaw_test_atk_object(context);
+    g_assert_nonnull(object);
+
+    const gchar *name = atk_object_get_name(object);
+    g_assert_nonnull(name);
+    g_assert_true(g_utf8_validate(name, -1, NULL));
+    g_assert_cmpstr(name, ==, NON_BMP_TEXT);
+}
+
+/*
+ * Checks: a description with a character outside the Basic Multilingual Plane
+ * reaches ATK as valid UTF-8, the same text as in Java.
+ *
+ * Why (wrapper): jaw_object_get_description had the same GetStringUTFChars
+ * conversion as jaw_object_get_name, see test_name_with_non_bmp_character.
+ */
+static void test_description_with_non_bmp_character(void) {
+    jaw_test_reset();
+    jobject context = jaw_test_fixture("buttonWithDescription", STRING_FIXTURE,
+                                       jaw_test_string(NON_BMP_TEXT));
+    AtkObject *object = jaw_test_atk_object(context);
+    g_assert_nonnull(object);
+
+    const gchar *description = atk_object_get_description(object);
+    g_assert_nonnull(description);
+    g_assert_true(g_utf8_validate(description, -1, NULL));
+    g_assert_cmpstr(description, ==, NON_BMP_TEXT);
+}
 
 int main(int argc, char **argv) {
     jaw_test_init(&argc, &argv);
@@ -179,6 +224,10 @@ int main(int argc, char **argv) {
                     test_collapsed_state_is_not_exposed);
     g_test_add_func("/jaw/object/menu-item-parent-is-menu",
                     test_menu_item_parent_is_menu);
+    g_test_add_func("/jaw/object/name-with-non-bmp-character",
+                    test_name_with_non_bmp_character);
+    g_test_add_func("/jaw/object/description-with-non-bmp-character",
+                    test_description_with_non_bmp_character);
 
     return jaw_test_run();
 }

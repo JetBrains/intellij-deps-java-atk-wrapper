@@ -56,7 +56,18 @@ final class NativeTestFixtures {
         return onEdt(() -> new JButton(text).getAccessibleContext());
     }
 
+    /** A button "OK" whose accessible description is {@code description}. */
+    static AccessibleContext buttonWithDescription(String description) throws Exception {
+        return onEdt(() -> {
+            AccessibleContext context = new JButton("OK").getAccessibleContext();
+            context.setAccessibleDescription(description);
+            return context;
+        });
+    }
 
+    static AccessibleContext label(String text) throws Exception {
+        return onEdt(() -> new JLabel(text).getAccessibleContext());
+    }
 
     /** A combo box with the items "Left" and {@code selectedItem}, the second one selected, labeled by a label. */
     static AccessibleContext labeledComboBox(String label, String selectedItem) throws Exception {
