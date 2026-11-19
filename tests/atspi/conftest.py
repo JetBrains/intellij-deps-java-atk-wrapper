@@ -48,6 +48,12 @@ STARTUP_CALL_TIMEOUT_MS = 15000
 STARTUP_TIMEOUT_S = 30.0
 EVENT_TIMEOUT_S = 10.0
 
+# What the sanitizers print for an error in a library built with configure --enable-sanitizers.
+SANITIZER_MESSAGES = (
+    "ERROR: AddressSanitizer",
+    "runtime error:",
+)
+
 EVENT_TYPES = (
     "window:create",
     "window:activate",
@@ -179,6 +185,20 @@ class RunningApp:
             return [line.rstrip("\n") for line in output if any(message in line for message in messages)]
 
 
+def application_environment():
+    """The environment of the application: with the sanitizer runtime when the library was built with it."""
+    environment = dict(os.environ)
+    preload = os.environ.get("ATSPI_SANITIZER_PRELOAD")
+    if preload:
+        # The JVM is not built with AddressSanitizer, so its runtime must be the first library of the process.
+        environment["LD_PRELOAD"] = preload
+        # handle_segv=0: the JVM uses SIGSEGV itself. detect_leaks=0: the JVM never frees much of its memory.
+        environment["ASAN_OPTIONS"] = "handle_segv=0:detect_leaks=0"
+        environment["UBSAN_OPTIONS"] = "print_stacktrace=1"
+        # Without it GLib hands out memory from its own pools, where AddressSanitizer sees no errors.
+        environment["G_SLICE"] = "always-malloc"
+    return environment
+
 
 @pytest.fixture(scope="session")
 def journal():
@@ -207,7 +227,9 @@ def app(journal):
     # The wrapper writes jaw_log.txt to the working directory when JAW_DEBUG is set.
     output_path = os.path.join(log_dir, "app-output.log")
     with open(output_path, "wb") as output:
-        process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, cwd=log_dir)
+        process = subprocess.Popen(
+            command, stdout=output, stderr=subprocess.STDOUT, cwd=log_dir, env=application_environment()
+        )
         try:
             def frame_or_exit():
                 if process.poll() is not None:

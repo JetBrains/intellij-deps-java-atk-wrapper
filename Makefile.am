@@ -57,6 +57,8 @@ endif
 # application with the wrapper and look at it through the AT-SPI bus, so they need an X server, a
 # session bus and Python with libatspi. tests/atspi/run.sh starts what a run needs and lists the
 # packages. The report goes to JUNIT_REPORTS_DIR, next to the reports of the unit tests.
+# After configure --enable-sanitizers, the application runs with the AddressSanitizer runtime
+# preloaded, because its JVM is not built with it.
 ATSPI_TESTS_DIR = $(abs_top_builddir)/tests/atspi
 
 check-atspi: all
@@ -65,6 +67,7 @@ check-atspi: all
 	JUNIT_REPORTS_DIR='$(JUNIT_REPORTS_DIR)' \
 	ATSPI_BUILD_DIR='$(ATSPI_TESTS_DIR)/build' \
 	ATSPI_LOG_DIR='$(ATSPI_TESTS_DIR)/logs' \
+	ATSPI_SANITIZER_PRELOAD='$(ASAN_RUNTIME)' \
 	$(SHELL) $(top_srcdir)/tests/atspi/run.sh
 
 .PHONY: check-atspi
