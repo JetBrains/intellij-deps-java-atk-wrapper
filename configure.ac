@@ -253,6 +253,36 @@ case "$enable_native_tests" in
 esac
 AM_CONDITIONAL(NATIVE_TESTS, test "$enable_native_tests" = yes)
 
+dnl Sanitizers, for the native unit tests and the AT-SPI integration tests. Such a build is for tests only:
+dnl its library needs the AddressSanitizer runtime in the process, so it must never be packaged or installed.
+AC_ARG_ENABLE([sanitizers],
+  [AS_HELP_STRING([--enable-sanitizers],
+    [build the native library and its tests with AddressSanitizer and UndefinedBehaviorSanitizer; for tests only])],
+  [], [enable_sanitizers=no])
+SANITIZER_LDFLAGS=
+ASAN_RUNTIME=
+if test "$enable_sanitizers" = yes; then
+  SANITIZER_LDFLAGS="-fsanitize=address,undefined"
+  AX_CHECK_LINK_FLAG([$SANITIZER_LDFLAGS], [],
+    [AC_MSG_ERROR([--enable-sanitizers: $CC cannot link with $SANITIZER_LDFLAGS])])
+  dnl -O1 and the frame pointer keep the stack traces of the reports readable. An error of
+  dnl UndefinedBehaviorSanitizer ends the process, so that a test fails on it.
+  JAW_CFLAGS="$JAW_CFLAGS $SANITIZER_LDFLAGS -fno-sanitize-recover=undefined -fno-omit-frame-pointer -g -O1"
+  LIB_ATK_WRAPPER_LD_FLAGS="$LIB_ATK_WRAPPER_LD_FLAGS $SANITIZER_LDFLAGS"
+  dnl A JVM that loads the library is not built with AddressSanitizer, so the runtime has to be preloaded.
+  AC_MSG_CHECKING([for the AddressSanitizer runtime])
+  ASAN_RUNTIME=`$CC -print-file-name=libasan.so`
+  case "$ASAN_RUNTIME" in
+    /*) AC_MSG_RESULT([$ASAN_RUNTIME]) ;;
+    *) AC_MSG_RESULT([no]); AC_MSG_ERROR([--enable-sanitizers: $CC does not know where libasan.so is]) ;;
+  esac
+elif test "$enable_sanitizers" != no; then
+  AC_MSG_ERROR([bad value $enable_sanitizers for --enable-sanitizers])
+fi
+AC_SUBST(SANITIZER_LDFLAGS)
+AC_SUBST(ASAN_RUNTIME)
+AM_CONDITIONAL(SANITIZERS, test "$enable_sanitizers" = yes)
+
 XPROP_PATH=${PATH}:/usr/X11/bin
 AC_PATH_PROG(XPROP,xprop,,${XPROP_PATH})
 if test -z "$XPROP"; then
@@ -334,6 +364,7 @@ Build configuration:
        Modular jar:                            ${enable_modular_jar}
        Java unit tests:                        ${enable_java_tests}
        Native unit tests:                      ${enable_native_tests}
+       Sanitizers:                             ${enable_sanitizers}
        Compiler:                               ${CC}
        JDK src:                                ${JDK_SRC}
        JAVA home:                              ${JAVA_HOME}

@@ -8,7 +8,9 @@
 # then.
 #
 # Environment: TAP_DRIVER (the path of tap-driver.sh), TAP_TO_JUNIT (the path of
-# tap-to-junit.awk), JUNIT_REPORTS_DIR, AWK.
+# tap-to-junit.awk), JUNIT_REPORTS_DIR, AWK. JUNIT_REPORT_SUFFIX, for example
+# "-asan", is added to the name of the report and of its test suite, so that a
+# second run of the same tests does not replace the reports of the first one.
 
 test_name=
 log_file=
@@ -28,8 +30,8 @@ status=$?
 if test -n "$JUNIT_REPORTS_DIR" && test -n "$test_name" && test -f "$log_file"; then
     report_name=`echo "$test_name" | sed 's|[/ ]|_|g'`
     mkdir -p "$JUNIT_REPORTS_DIR" &&
-        ${AWK:-awk} -v suite="native.$report_name" -f "$TAP_TO_JUNIT" "$log_file" \
-            > "$JUNIT_REPORTS_DIR/TEST-native-$report_name.xml" ||
+        ${AWK:-awk} -v suite="native.$report_name${JUNIT_REPORT_SUFFIX:-}" -f "$TAP_TO_JUNIT" "$log_file" \
+            > "$JUNIT_REPORTS_DIR/TEST-native-$report_name${JUNIT_REPORT_SUFFIX:-}.xml" ||
         echo "$0: could not write the JUnit report of $test_name" >&2
 fi
 

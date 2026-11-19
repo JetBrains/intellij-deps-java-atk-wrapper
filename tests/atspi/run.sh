@@ -12,6 +12,9 @@
 #   ATSPI_BUILD_DIR     where the test application is compiled, default: tests/atspi/build
 #   ATSPI_LOG_DIR       the logs of a run, default: tests/atspi/logs
 #   JAW_DEBUG           passed on to the wrapper, which then writes jaw_log.txt to ATSPI_LOG_DIR
+#   JUNIT_REPORT_SUFFIX     added to the report name, for example "-asan" gives TEST-atspi-asan.xml
+#   ATSPI_SANITIZER_PRELOAD the AddressSanitizer runtime to preload into the application, for a library
+#                           built with configure --enable-sanitizers
 #
 # Packages on Ubuntu: xvfb xauth dbus at-spi2-core gir1.2-atspi-2.0 python3-gi python3-pytest openbox x11-utils.
 
@@ -46,7 +49,7 @@ if test "${1:-}" = "--inside-session"; then
     # A hung application must fail the run, not block the build.
     status=0
     timeout 300 python3 -m pytest "$here" -v -p no:cacheprovider \
-        --junitxml="$JUNIT_REPORTS_DIR/TEST-atspi.xml" || status=$?
+        --junitxml="$JUNIT_REPORTS_DIR/TEST-atspi${JUNIT_REPORT_SUFFIX:-}.xml" || status=$?
     exit "$status"
 fi
 
@@ -70,7 +73,7 @@ mkdir -p "$ATSPI_BUILD_DIR/classes" "$ATSPI_LOG_DIR" "$JUNIT_REPORTS_DIR"
 # The pytest and the application run in other directories, so the paths must be absolute.
 ATSPI_LOG_DIR=$(cd "$ATSPI_LOG_DIR" && pwd)
 JUNIT_REPORTS_DIR=$(cd "$JUNIT_REPORTS_DIR" && pwd)
-rm -f "$JUNIT_REPORTS_DIR/TEST-atspi.xml"
+rm -f "$JUNIT_REPORTS_DIR/TEST-atspi${JUNIT_REPORT_SUFFIX:-}.xml"
 
 "$JAVAC" -d "$ATSPI_BUILD_DIR/classes" "$here/app/AtspiTestApp.java"
 
@@ -80,7 +83,9 @@ ATSPI_CLASSPATH=$JAW_JAR:$(cd "$ATSPI_BUILD_DIR/classes" && pwd)
 G_MESSAGES_DEBUG=${G_MESSAGES_DEBUG:-all}
 # No .pyc files in the source tree.
 PYTHONDONTWRITEBYTECODE=1
+ATSPI_SANITIZER_PRELOAD=${ATSPI_SANITIZER_PRELOAD:-}
 export ATSPI_JAVA ATSPI_CLASSPATH ATSPI_LOG_DIR JUNIT_REPORTS_DIR G_MESSAGES_DEBUG PYTHONDONTWRITEBYTECODE
+export ATSPI_SANITIZER_PRELOAD
 
 # Xvfb is the outer one, so that DISPLAY is set when the session bus starts the AT-SPI bus.
 exec xvfb-run -a -e "$ATSPI_LOG_DIR/xvfb.log" -s "-screen 0 1280x1024x24" \
