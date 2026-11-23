@@ -37,8 +37,10 @@ AM_CPPFLAGS = \
 LDADD = \
 	$(top_builddir)/jni/src/libatk-wrapper.la \
 	$(JAW_LIBS) \
-	-L$(JVM_LIBDIR) -ljvm -Wl,-rpath,$(JVM_LIBDIR) \
+	-ljvm \
 	$(SANITIZER_LDFLAGS)
+
+AM_LDFLAGS = -L$(JVM_LIBDIR) -Wl,-rpath,$(JVM_LIBDIR)
 
 # handle_segv=0: the JVM uses SIGSEGV itself, and AddressSanitizer would take it for a crash.
 # detect_leaks=0: the JVM never frees much of its memory. G_SLICE: without it GLib hands out
@@ -54,8 +56,8 @@ endif
 test_jaw_object_SOURCES = test-jaw-object.c jaw-test-jvm.c jaw-test-jvm.h
 
 # The programs print TAP; the driver also writes a JUnit XML report for each of them.
+# jaw_test_init adds --tap to the options of a program.
 LOG_DRIVER = $(SHELL) $(srcdir)/junit-tap-driver.sh
-AM_LOG_FLAGS = --tap
 AM_TESTS_ENVIRONMENT = \
 	JAW_TEST_CLASSPATH='$(abs_builddir)/classes'; \
 	JAW_TEST_LIBRARY='$(abs_top_builddir)/jni/src/.libs/libatk-wrapper.so'; \

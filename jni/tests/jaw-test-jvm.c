@@ -166,6 +166,17 @@ static void create_jvm(const char *class_path) {
 }
 
 void jaw_test_init(int *argc, char ***argv) {
+    // The test driver of make check reads TAP, which GLib before 2.62 prints
+    // only with --tap. The option goes here and not into AM_LOG_FLAGS of
+    // Makefile.am: automake puts those in front of the program, as the command.
+    char **tap_argv = g_new0(char *, *argc + 2);
+    tap_argv[0] = (*argv)[0];
+    tap_argv[1] = "--tap";
+    for (int i = 1; i < *argc; i++) {
+        tap_argv[i + 1] = (*argv)[i];
+    }
+    *argc += 1;
+    *argv = tap_argv; // lives until the end of the program, as argv does
     g_test_init(argc, argv, NULL);
 
     const char *class_path = g_getenv("JAW_TEST_CLASSPATH");
