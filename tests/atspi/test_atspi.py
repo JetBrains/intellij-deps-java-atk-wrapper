@@ -27,6 +27,7 @@ gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
 from conftest import FRAME_NAME, SANITIZER_MESSAGES, wait_for  # noqa: E402
+from orca_speech import KEY_ESCAPE, KEY_F10, press  # noqa: E402
 
 
 def test_application_is_on_the_bus(app):
@@ -53,6 +54,37 @@ def test_window_activation_is_reported(app, journal):
         "window:activate from the frame",
         journal=journal,
     )
+
+
+def test_key_reaches_the_application(app, journal):
+    """Checks: F10, pressed through the X server as a user presses it, moves the focus to the menu `File`.
+
+    Why (wrapper, test setup): the AWT key listener of AtkWrapper passes every key to the native layer, which
+    reads the fields of AtkKeyEvent on the GLib thread for the key snoopers of ATK; a read of the long field
+    `timestamp` with GetIntField was a fatal error of -Xcheck:jni, and the application ended at its first key.
+    The keys reach the application only in the X11 session that run.sh sets up, also from a Wayland desktop.
+    """
+    # The keys go to the active window.
+    wait_for(
+        lambda: journal.find("window:activate", role=Atspi.Role.FRAME, name=FRAME_NAME),
+        "window:activate from the frame",
+        journal=journal,
+    )
+    events_before = len(journal.events)
+    press(KEY_F10)
+    try:
+        wait_for(
+            lambda: any(
+                event.type.startswith("object:state-changed:focused") and event.name == "File" and event.detail1 == 1
+                for event in journal.events[events_before:]
+            ),
+            "object:state-changed:focused from 'File' after F10",
+            journal=journal,
+        )
+    finally:
+        # Close the menu, so that the application is left without an open popup.
+        press(KEY_ESCAPE)
+        press(KEY_ESCAPE)
 
 
 # The test below looks at what the application did during the tests above, so it must stay the last one of this

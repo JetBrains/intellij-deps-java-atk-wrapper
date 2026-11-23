@@ -1613,8 +1613,10 @@ static gboolean key_dispatch_handler(gpointer p) {
     event->keycode = (gint)(*jniEnv)->GetIntField(jniEnv, jAtkKeyEvent,
                                                   cachedWrapperKeycodeFieldID);
 
-    // timestamp
-    event->timestamp = (gint64)(*jniEnv)->GetIntField(
+    // timestamp: a long field of AtkKeyEvent, the milliseconds of
+    // KeyEvent.getWhen(). ATK keeps 32 bits of milliseconds from an arbitrary
+    // start, so the value is truncated.
+    event->timestamp = (guint32)(*jniEnv)->GetLongField(
         jniEnv, jAtkKeyEvent, cachedWrapperTimestampFieldID);
 
     jaw_util_dispatch_key_event(event);
