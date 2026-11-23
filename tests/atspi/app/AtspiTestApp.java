@@ -18,6 +18,9 @@
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
@@ -27,7 +30,7 @@ import javax.swing.SwingUtilities;
  * the JDK loads the wrapper from {@code javax.accessibility.assistive_technologies}, as in production.
  * <p>
  * The tests find the window by {@link #FRAME_TITLE} and the components by their names, so a change of a name here
- * needs the same change in {@code conftest.py} or {@code test_atspi.py}.
+ * needs the same change in {@code conftest.py}, {@code test_atspi.py} or {@code test_orca.py}.
  */
 public final class AtspiTestApp {
 
@@ -41,8 +44,18 @@ public final class AtspiTestApp {
             JPanel panel = new JPanel();
             panel.add(new JButton("First"));
 
+            // File -> Open, Recent -> Project: a menu with a submenu, for the keyboard navigation of test_orca.py.
+            JMenu recentMenu = new JMenu("Recent");
+            recentMenu.add(new JMenuItem("Project"));
+            JMenu fileMenu = new JMenu("File");
+            fileMenu.add(new JMenuItem("Open"));
+            fileMenu.add(recentMenu);
+            JMenuBar menuBar = new JMenuBar();
+            menuBar.add(fileMenu);
+
             JFrame frame = new JFrame(FRAME_TITLE);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setJMenuBar(menuBar);
             frame.setContentPane(panel);
             frame.pack();
             frame.setLocationRelativeTo(null);

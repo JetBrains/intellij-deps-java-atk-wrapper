@@ -181,6 +181,17 @@ def find_frame():
     return None
 
 
+def window_is_active(frame):
+    """Returns whether `frame` has the state `active`: it is the focused window, where the keys of a test go.
+
+    A Swing window has the state while it is focused and one of its components has the focus
+    (`Frame.AccessibleAWTFrame.getAccessibleStateSet`), and AWT fires no event when the state changes. So the
+    state is asked from the application each time, not taken from the cache of libatspi.
+    """
+    frame.clear_cache()
+    return frame.get_state_set().contains(Atspi.StateType.ACTIVE)
+
+
 class RunningApp:
     def __init__(self, process, application, frame, output_path):
         self.process = process
