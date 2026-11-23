@@ -26,12 +26,17 @@ before writing a test.
   what the JVM and the native layer printed.
 - `journal` (scope `session`): every event of `EVENT_TYPES` from before the start of the application, as
   `RecordedEvent` with the role and the name of its source. `journal.find(...)` returns the first match of the
-  whole run; a test that needs the events after its action keeps `len(journal.events)` before it.
+  whole run; a test that needs the events after its action keeps `len(journal.events)` before it and passes it
+  as `start`.
 - `wait_for(predicate, what, journal=...)`: runs the GLib main context until the predicate holds, and fails with
   the recorded events.
 - `window_is_active(frame)`: whether the window has the state `active`, so that the keys of a test go to it. Wait
   for it before the first key; the wrapper delivers no `window:activate`.
-- `FRAME_NAME`, `find_frame()`, `application_environment()`.
+- `has_focus(accessible)`: whether a component has the state `focused`. A menu that closes gives the focus back
+  to the component that had it before; wait for that before a test that moves the focus.
+- `press(keysym)`: sends a real key through the X server, with the `KEY_…` keysyms. Wait for the event of a key
+  before the next key, or the events of two keys arrive together and a test takes the wrong one.
+- `FRAME_NAME`, `find_frame()`, `find_descendant(root, name)`, `application_environment()`.
 
 Tests are in `test_atspi.py`. Its last test reads the output of the application for sanitizer messages and
 checks that the application still runs: keep it last.
@@ -39,7 +44,8 @@ checks that the application still runs: keep it last.
 ## What can be tested
 
 - The application and its windows on the AT-SPI desktop: toolkit name, roles, names, parents.
-- Events delivered over the bus: focus, active descendant, property changes.
+- Events delivered over the bus: focus, active descendant, property changes, text changes.
+- Text offsets as a client sees them: the answer to a request and the event of the same change together.
 - What needs the real threads of an application: the GLib main loop, the EDT, the AWT event threads.
 - `-Xcheck:jni` and the sanitizers with those threads.
 
