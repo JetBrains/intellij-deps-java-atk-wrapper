@@ -31,9 +31,16 @@ Write a body unless the change is mechanical (a typo, an import, a format pass).
 - The first paragraph is the lead: the new state and its cause, in 1-3 sentences.
 - Then one paragraph per decision: what you chose, what you did not choose, and why. Write code names in
   backticks.
-- Then `Evidence:`, on its own line right before its list.
 - Write each paragraph as one line, with no line breaks inside it. Separate paragraphs with one blank line. Do not
   wrap a paragraph at a fixed width: the viewer wraps it.
+
+A commit message describes the change, not the session that made it. It stays in the history for years and is read
+by people who never saw that session.
+
+- Never write about the machine, the environment or the author: no "here", "locally", "on my machine", "on macOS",
+  "I could not run". `Not run: there is no Linux with an X server here` says nothing about the change.
+- Do not report the state of other branches or of a push, such as "the branch is not pushed yet": it is false
+  as soon as the commit is pushed.
 
 ## Protected files
 
