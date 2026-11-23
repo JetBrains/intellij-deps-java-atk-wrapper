@@ -30,15 +30,12 @@ from conftest import FRAME_NAME, SANITIZER_MESSAGES  # noqa: E402
 
 
 def test_application_is_on_the_bus(app):
-    """Checks: a Swing application started with the wrapper as its assistive technology appears on the AT-SPI
-    desktop, with the toolkit name of the wrapper, and its window is a child of the application with the role
-    `frame` and the title as its name.
+    """Checks: the application is on the AT-SPI desktop with the toolkit name of the wrapper, and its window is
+    a child of the application with the role `frame` and the window title as its name.
 
-    Why (wrapper, test setup): this is the only test of the start of the wrapper. The static initializer of
-    AtkWrapper loads the native library from the jar, looks for the AT-SPI bus and loads the ATK bridge; the unit
-    tests run without the library on purpose, and the native tests never load the bridge. The window becomes a
-    child of the application only through the AWT event WINDOW_OPENED and `jaw_toplevel_add_window`, which no
-    headless test runs; the registration of top-level windows was broken before (IJPL-253929, IJPL-256097).
+    Why (wrapper): no lower-level test starts the wrapper the way an application does: the unit tests run
+    without the native library, and the native tests never load the ATK bridge. The window reaches the
+    application only through the AWT event WINDOW_OPENED, which no headless test produces.
     """
     assert app.application.get_toolkit_name() == "J2SE-access-bridge"
     assert app.frame.get_role() == Atspi.Role.FRAME
@@ -52,10 +49,9 @@ def test_application_is_on_the_bus(app):
 def test_application_is_still_running(app):
     """Checks: after the tests above the application is alive, and no sanitizer reported an error.
 
-    Why (wrapper, test setup): a fatal error of -Xcheck:jni, a crash in the native layer or an error that a
-    sanitizer found ends the application. The tests above then fail with a D-Bus error that does not name the
-    cause; this test names it. The sanitizers report only when the library is built with
-    `configure --enable-sanitizers`.
+    Why (test setup): a crash, a fatal error of -Xcheck:jni or a sanitizer error ends the application, and the
+    tests above then fail with a D-Bus error that does not say why. The sanitizers report only for a library
+    built with `configure --enable-sanitizers`.
     """
     errors = app.output_lines_with(SANITIZER_MESSAGES)
     assert not errors, "a sanitizer reported an error, see app-output.log: " + "; ".join(errors)

@@ -27,14 +27,10 @@
     "(Ljava/lang/String;)Ljavax/accessibility/AccessibleContext;"
 
 /*
- * Checks: a JButton reaches ATK as a push button whose name is the text of the
- * button, and the Java layer stays disabled.
- *
- * Why (test setup): this is the smoke test of the harness. It passes only when
- * the JVM runs, the library is loaded once and bound to it, and the upcalls of
- * jaw_object_get_role and jaw_object_get_name reach Java. The disabled Java
- * layer shows that the static initializer of AtkWrapper did not load a second
- * copy of the library or the AT-SPI bridge.
+ * The smoke test of the harness: a JButton reaches ATK as a push button named
+ * by its text. It passes only when the library is bound to the JVM and the
+ * upcalls of jaw_object_get_role and jaw_object_get_name reach Java. The Java
+ * layer must stay disabled: an enabled one would have loaded the AT-SPI bridge.
  */
 static void test_smoke_button(void) {
     jobject context =
@@ -48,14 +44,10 @@ static void test_smoke_button(void) {
 }
 
 /*
- * Checks: the same AccessibleContext always gives the same ATK object, and
- * another context gives another object, even for an equal component.
- *
- * Why (wrapper): jaw_impl_find_instance maps a context to its ATK object
- * through the handle that AtkWrapperDisposer keeps. An assistive technology
- * tells objects apart by identity: a new object for the same component is a
- * new element for Orca, which is why the Java layer keeps the node contexts of
- * a JTree stable (IJPL-242394).
+ * The same AccessibleContext gives the same ATK object, and another context
+ * another object, even for an equal component. jaw_impl_find_instance maps a
+ * context through the handle that AtkWrapperDisposer keeps; the stable node
+ * contexts of a JTree rely on it (IJPL-242394).
  */
 static void test_same_object_for_same_context(void) {
     jobject context =
@@ -74,15 +66,9 @@ static void test_same_object_for_same_context(void) {
 }
 
 /*
- * Checks: the name of a combo box with a label is the text of the label, not
- * the selected item.
- *
- * Why (Swing, Orca): a JComboBox always has one accessible child, its popup.
- * jaw_object_get_name used to return the name of the selected child for every
- * combo box with one child, so Orca spoke the selected item twice instead of
- * the label (IJPL-262106, fixed in 33038d2). The name now comes from
- * AccessibleContext.getAccessibleName, which for a combo box falls back to the
- * label set by JLabel.setLabelFor; Orca reads the selected item as the value.
+ * A labeled combo box is named by its label, not by its selected item
+ * (IJPL-262106). A JComboBox always has one accessible child, its popup, and
+ * jaw_object_get_name used to return the name of that child's selection.
  */
 static void test_combo_box_name_is_its_label(void) {
     jobject context = jaw_test_fixture(
@@ -98,21 +84,12 @@ static void test_combo_box_name_is_its_label(void) {
 }
 
 /*
- * Checks: a collapsed tree node that can be expanded reports
- * ATK_STATE_EXPANDABLE, and neither ATK_STATE_EXPANDED nor ATK_STATE_COLLAPSED,
- * nor ATK_STATE_INVALID.
- *
- * Why (Swing, Orca): Swing reports the Java COLLAPSED state for every collapsed
- * node. The wrapper reports a collapse as the removal of ATK_STATE_EXPANDED,
- * and no event removes ATK_STATE_COLLAPSED from the state cache of Orca, so
- * Orca said "collapsed" after an expansion (IJPL-237903, fixed in 844aed0).
- * jaw_object_ref_state_set therefore drops the Java COLLAPSED state; Orca
- * derives "collapsed" from ATK_STATE_EXPANDABLE. Before ATK 2.38 the state
- * mapped to ATK_STATE_INVALID, which made the object invalid.
- *
- * May change when: Orca stops caching ATK_STATE_COLLAPSED, or the wrapper
- * reports a collapse as the addition of ATK_STATE_COLLAPSED. The state could
- * then be exposed again.
+ * A collapsed tree node reports ATK_STATE_EXPANDABLE but not
+ * ATK_STATE_COLLAPSED (IJPL-237903). Swing reports the Java COLLAPSED state,
+ * and jaw_object_ref_state_set drops it: the wrapper reports a collapse as the
+ * removal of ATK_STATE_EXPANDED, and no event would remove a COLLAPSED state
+ * that a screen reader cached. Before ATK 2.38 the Java state mapped to
+ * ATK_STATE_INVALID, so that state must not appear either.
  */
 static void test_collapsed_state_is_not_exposed(void) {
     jobject context = jaw_test_fixture(
@@ -134,15 +111,10 @@ static void test_collapsed_state_is_not_exposed(void) {
 }
 
 /*
- * Checks: atk_object_get_parent of an item of a menu returns the ATK object of
- * the JMenu, not of the JPopupMenu that holds the item.
- *
- * Why (Swing, Orca): Swing reports the JPopupMenu as the parent of a menu item
- * until something asks the JMenu for its children. The Java upcall
- * get_accessible_parent returns the JMenu instead, and Orca then speaks the
- * menu name when the focus enters the menu (IJPL-242397). The Java unit tests
- * check the upcall; this test checks that the native layer finds the ATK
- * object of the returned menu.
+ * The parent of a menu item is the ATK object of its JMenu, not of the
+ * JPopupMenu that holds it (IJPL-242397). The Java unit tests check the upcall
+ * get_accessible_parent; this test checks that the native layer finds the ATK
+ * object of the menu that the upcall returns.
  */
 static void test_menu_item_parent_is_menu(void) {
     jobject contexts = jaw_test_fixture(
@@ -164,15 +136,9 @@ static void test_menu_item_parent_is_menu(void) {
 #define NON_BMP_TEXT "Open \xF0\x9F\x93\x82"
 
 /*
- * Checks: a name with a character outside the Basic Multilingual Plane reaches
- * ATK as valid UTF-8, the same text as in Java.
- *
- * Why (wrapper): ATK strings are UTF-8, and the AT-SPI bridge sends them over
- * D-Bus, which requires valid UTF-8. jaw_object_get_name used to convert the
- * Java name with GetStringUTFChars, which by the JNI specification returns
- * modified UTF-8: a character outside the BMP becomes two encoded surrogates of
- * three bytes each, which is not valid UTF-8. It now converts through UTF-16
- * with jaw_util_jstring_to_utf8_gchar.
+ * A name with a character outside the BMP reaches ATK as valid UTF-8, the same
+ * text as in Java. GetStringUTFChars returns modified UTF-8, where such a
+ * character is two encoded surrogates; D-Bus rejects that as invalid UTF-8.
  */
 static void test_name_with_non_bmp_character(void) {
     jobject context = jaw_test_fixture("label", STRING_FIXTURE,
@@ -187,11 +153,7 @@ static void test_name_with_non_bmp_character(void) {
 }
 
 /*
- * Checks: a description with a character outside the Basic Multilingual Plane
- * reaches ATK as valid UTF-8, the same text as in Java.
- *
- * Why (wrapper): jaw_object_get_description had the same GetStringUTFChars
- * conversion as jaw_object_get_name, see test_name_with_non_bmp_character.
+ * The same as test_name_with_non_bmp_character, for the description.
  */
 static void test_description_with_non_bmp_character(void) {
     jobject context = jaw_test_fixture("buttonWithDescription", STRING_FIXTURE,
