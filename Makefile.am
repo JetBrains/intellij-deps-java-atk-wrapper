@@ -70,12 +70,26 @@ check-atspi: all
 	ATSPI_SANITIZER_PRELOAD='$(ASAN_RUNTIME)' \
 	$(SHELL) $(top_srcdir)/tests/atspi/run.sh
 
-.PHONY: check-atspi
+# A trial: tests of what Orca says, run by `make check-orca` only. They start Orca next to the
+# application of the AT-SPI tests and read its speech from its debug log, see
+# tests/atspi/orca_speech.py. They need what check-atspi needs and the package orca. The logs go
+# to a directory of their own, because run.sh empties its log directory first.
+check-orca: all
+	JAVA='$(JAVA)' JAVAC='$(JAVAC)' \
+	JAW_JAR='$(abs_top_builddir)/wrapper/$(JAW_JAR_NAME)' \
+	JUNIT_REPORTS_DIR='$(JUNIT_REPORTS_DIR)' \
+	ATSPI_BUILD_DIR='$(ATSPI_TESTS_DIR)/build' \
+	ATSPI_LOG_DIR='$(ATSPI_TESTS_DIR)/logs-orca' \
+	ATSPI_SANITIZER_PRELOAD='$(ASAN_RUNTIME)' \
+	ATSPI_TESTS=test_orca.py JUNIT_REPORT_SUFFIX=-orca \
+	$(SHELL) $(top_srcdir)/tests/atspi/run.sh
+
+.PHONY: check-atspi check-orca
 
 clean-local:
 	$(RM) *.class
 	rm -rf $(TEST_CLASSES_DIR)
-	rm -rf $(ATSPI_TESTS_DIR)/build $(ATSPI_TESTS_DIR)/logs
+	rm -rf $(ATSPI_TESTS_DIR)/build $(ATSPI_TESTS_DIR)/logs $(ATSPI_TESTS_DIR)/logs-orca
 	rm -f $(JUNIT_REPORTS_DIR)/TEST-*.xml
 	rmdir $(JUNIT_REPORTS_DIR) 2>/dev/null || :
 

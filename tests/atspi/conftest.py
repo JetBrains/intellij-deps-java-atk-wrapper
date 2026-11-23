@@ -21,6 +21,16 @@ bus with libatspi, the way a screen reader does. run.sh provides the X server, t
 environment variables read below; start the tests with `make check-atspi`, not with pytest directly.
 
 The code runs on Ubuntu 20.04: Python 3.8, pytest 4.6, at-spi2-core 2.36.
+
+Writing a test:
+- Take `app` for the running application and `journal` for the events. The journal starts before the
+  application, so it holds the startup events as well; `journal.find` returns the first match of the whole run.
+- Wait with `wait_for`, which runs the GLib main context: libatspi delivers events and updates its cache only
+  while it runs. Never use `time.sleep`.
+- Match the source of an event, not only its type: role and name, or the object itself when identity matters.
+- A test that checks that an event did not come must first show that its action happened.
+- The tests of a file share one application, and the last tests of test_atspi.py read its output: keep them
+  last.
 """
 
 import os

@@ -98,6 +98,20 @@ UndefinedBehaviorSanitizer, and `make check` then fails on a memory error or on 
 layer. Such a build is for tests only: build it in a separate copy of the sources, and never install or package its
 library. Leak detection is off, because the JVM never frees much of its memory.
 
+`make check-atspi` runs the AT-SPI integration tests in `tests/atspi/`, which `make check` does not run. They start a
+Swing application with the wrapper as its assistive technology and check it with libatspi, as a screen reader sees
+it: that the application and its window reach the AT-SPI desktop, and that window events arrive over the bus. They
+cover only what the unit tests cannot: the start of the wrapper in an application, real window and focus events, the
+calls between the GLib thread and the EDT, and the delivery over D-Bus. `tests/atspi/run.sh` starts an X server, a
+session bus and a window manager for each run and lists the packages it needs; the report is
+`TEST-atspi.xml` next to the other reports, and the logs of a run are in `tests/atspi/logs/`.
+
+`make check-orca` runs a trial of tests of what Orca says, `tests/atspi/test_orca.py`. They start Orca next to the
+application of the AT-SPI tests, press keys and read the phrases of Orca from its debug log, so they need no audio;
+they need the package `orca` in addition. The module that reads the log relies on Orca 3.36 to 49. The report is
+`TEST-atspi-orca.xml`, and the logs are in `tests/atspi/logs-orca/`. What these tests do not cover stays a manual
+check with a screen reader.
+
 ## Upstream Project
 
 This project is based on **Java ATK Wrapper** from the GNOME Project.

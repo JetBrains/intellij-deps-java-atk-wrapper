@@ -11,6 +11,8 @@
 #   JUNIT_REPORTS_DIR   where TEST-atspi.xml goes, default: test-reports in the working directory
 #   ATSPI_BUILD_DIR     where the test application is compiled, default: tests/atspi/build
 #   ATSPI_LOG_DIR       the logs of a run, default: tests/atspi/logs
+#   ATSPI_TESTS         the test file to run, default: test_atspi.py. `make check-orca` runs test_orca.py,
+#                       which also needs the package orca.
 #   JAW_DEBUG           passed on to the wrapper, which then writes jaw_log.txt to ATSPI_LOG_DIR
 #   JUNIT_REPORT_SUFFIX     added to the report name, for example "-asan" gives TEST-atspi-asan.xml
 #   ATSPI_SANITIZER_PRELOAD the AddressSanitizer runtime to preload into the application, for a library
@@ -48,7 +50,7 @@ if test "${1:-}" = "--inside-session"; then
 
     # A hung application must fail the run, not block the build.
     status=0
-    timeout 300 python3 -m pytest "$here" -v -p no:cacheprovider \
+    timeout 300 python3 -m pytest "$here/$ATSPI_TESTS" -v -p no:cacheprovider \
         --junitxml="$JUNIT_REPORTS_DIR/TEST-atspi${JUNIT_REPORT_SUFFIX:-}.xml" || status=$?
     exit "$status"
 fi
@@ -59,6 +61,8 @@ JAVAC=${JAVAC:-javac}
 ATSPI_BUILD_DIR=${ATSPI_BUILD_DIR:-$here/build}
 ATSPI_LOG_DIR=${ATSPI_LOG_DIR:-$here/logs}
 JUNIT_REPORTS_DIR=${JUNIT_REPORTS_DIR:-$PWD/test-reports}
+ATSPI_TESTS=${ATSPI_TESTS:-test_atspi.py}
+test -f "$here/$ATSPI_TESTS" || { echo "$0: no test file $here/$ATSPI_TESTS" >&2; exit 1; }
 
 for tool in xvfb-run dbus-run-session dbus-send xprop openbox python3 timeout; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -85,7 +89,7 @@ G_MESSAGES_DEBUG=${G_MESSAGES_DEBUG:-all}
 PYTHONDONTWRITEBYTECODE=1
 ATSPI_SANITIZER_PRELOAD=${ATSPI_SANITIZER_PRELOAD:-}
 export ATSPI_JAVA ATSPI_CLASSPATH ATSPI_LOG_DIR JUNIT_REPORTS_DIR G_MESSAGES_DEBUG PYTHONDONTWRITEBYTECODE
-export ATSPI_SANITIZER_PRELOAD
+export ATSPI_SANITIZER_PRELOAD ATSPI_TESTS
 
 # Xvfb is the outer one, so that DISPLAY is set when the session bus starts the AT-SPI bus.
 exec xvfb-run -a -e "$ATSPI_LOG_DIR/xvfb.log" -s "-screen 0 1280x1024x24" \
