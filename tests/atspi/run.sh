@@ -91,6 +91,12 @@ ATSPI_SANITIZER_PRELOAD=${ATSPI_SANITIZER_PRELOAD:-}
 export ATSPI_JAVA ATSPI_CLASSPATH ATSPI_LOG_DIR JUNIT_REPORTS_DIR G_MESSAGES_DEBUG PYTHONDONTWRITEBYTECODE
 export ATSPI_SANITIZER_PRELOAD ATSPI_TESTS
 
+# The run is an X11 session of its own, also when it starts in a Wayland desktop: with WAYLAND_DISPLAY and
+# XDG_SESSION_TYPE=wayland inherited, the keys that the tests generate through AT-SPI never reach the application.
+unset WAYLAND_DISPLAY
+XDG_SESSION_TYPE=x11
+export XDG_SESSION_TYPE
+
 # Xvfb is the outer one, so that DISPLAY is set when the session bus starts the AT-SPI bus.
 exec xvfb-run -a -e "$ATSPI_LOG_DIR/xvfb.log" -s "-screen 0 1280x1024x24" \
     dbus-run-session -- /bin/sh "$0" --inside-session
