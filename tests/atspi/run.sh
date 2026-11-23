@@ -108,4 +108,4 @@ export ATSPI_SANITIZER_PRELOAD ATSPI_TESTS
 
 # Xvfb is the outer one, so that DISPLAY is set when the session bus starts the AT-SPI bus.
 exec xvfb-run -a -e "$ATSPI_LOG_DIR/xvfb.log" -s "-screen 0 1280x1024x24" \
-    dbus-run-session -- "$0" --inside-session
+    dbus-run-session -- /bin/sh "$0" --inside-session
