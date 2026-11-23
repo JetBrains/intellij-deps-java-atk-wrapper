@@ -33,21 +33,9 @@ import shutil
 import subprocess
 import time
 
-import gi
+import pytest
 
-gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi  # noqa: E402
-
-import pytest  # noqa: E402
-
-from conftest import wait_for  # noqa: E402
-
-# X11 keysyms, see keysymdef.h.
-KEY_ESCAPE = 0xFF1B
-KEY_LEFT = 0xFF51
-KEY_RIGHT = 0xFF53
-KEY_DOWN = 0xFF54
-KEY_F10 = 0xFFC7
+from conftest import wait_for
 
 ORCA_STARTUP_TIMEOUT_S = 30.0
 SPEECH_TIMEOUT_S = 10.0
@@ -74,12 +62,6 @@ try:
 except Exception:
     traceback.print_exc()
 '''
-
-
-def press(keysym):
-    """Presses and releases a key through the X server, as a user does, so the focused window gets it."""
-    if not Atspi.generate_keyboard_event(keysym, None, Atspi.KeySynthType.SYM):
-        pytest.fail("the AT-SPI registry did not generate the key 0x%x" % keysym)
 
 
 class Orca:

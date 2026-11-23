@@ -29,6 +29,8 @@ Writing a test:
   while it runs. Never use `time.sleep`.
 - Match the source of an event, not only its type: role and name, or the object itself when identity matters.
 - A test that checks that an event did not come must first show that its action happened.
+- Send keys with `press`. Wait for the event of every key before the next one: the events of two keys can
+  otherwise arrive in one batch, and `journal.find(..., start=...)` then takes the event of the earlier key.
 - The tests of a file share one application, and the last tests of test_atspi.py read its output: keep them
   last.
 """
@@ -72,7 +74,23 @@ EVENT_TYPES = (
     "object:state-changed:focused",
     "object:active-descendant-changed",
     "object:property-change:accessible-name",
+    "object:text-caret-moved",
+    "object:text-changed:insert",
+    "object:text-changed:delete",
+    "object:text-selection-changed",
 )
+
+# X11 keysyms for `press`, see keysymdef.h.
+KEY_BACKSPACE = 0xFF08
+KEY_ESCAPE = 0xFF1B
+KEY_HOME = 0xFF50
+KEY_LEFT = 0xFF51
+KEY_RIGHT = 0xFF53
+KEY_DOWN = 0xFF54
+KEY_END = 0xFF57
+KEY_F2 = 0xFFBF
+KEY_F10 = 0xFFC7
+KEY_X = 0x0078
 
 
 def _environment(name):
@@ -120,9 +138,10 @@ class EventJournal:
         for event_type in EVENT_TYPES:
             self._listener.deregister(event_type)
 
-    def find(self, event_type, role=None, name=None, detail1=None):
-        """Returns the first recorded event that matches, or None."""
-        for event in self.events:
+    def find(self, event_type, role=None, name=None, detail1=None, start=0):
+        """Returns the first recorded event that matches, or None. `start` skips the events before an action:
+        pass the value that `len(journal.events)` had before it."""
+        for event in self.events[start:]:
             if event.type != event_type:
                 continue
             if role is not None and event.role != role:
@@ -179,6 +198,32 @@ def find_frame():
         # Another application on the bus went away during the walk; the next attempt sees the new state.
         return None
     return None
+
+
+def find_descendant(root, name, depth=10):
+    """Returns the first accessible with the name `name` below `root`, in depth-first order, or None."""
+    if depth == 0:
+        return None
+    try:
+        for i in range(root.get_child_count()):
+            child = root.get_child_at_index(i)
+            if child is None:
+                continue
+            if child.get_name() == name:
+                return child
+            found = find_descendant(child, name, depth - 1)
+            if found is not None:
+                return found
+    except GLib.Error:
+        # A component went away during the walk; the next attempt sees the new state.
+        return None
+    return None
+
+
+def press(keysym):
+    """Presses and releases a key through the X server, as a user does, so the focused window gets it."""
+    if not Atspi.generate_keyboard_event(keysym, None, Atspi.KeySynthType.SYM):
+        pytest.fail("the AT-SPI registry did not generate the key 0x%x" % keysym)
 
 
 class RunningApp:

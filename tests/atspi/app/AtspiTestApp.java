@@ -16,12 +16,18 @@
  * along with this library; if not, see <https://www.gnu.org/licenses/>.
  */
 
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+
+import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
 /**
@@ -36,6 +42,13 @@ public final class AtspiTestApp {
 
     static final String FRAME_TITLE = "ATK wrapper test";
 
+    /**
+     * "A", an emoji outside the BMP (U+1F600) and "B". The emoji is one character for ATK and two {@code char}s
+     * of a Java {@code String}, so every Swing index after it differs from the ATK offset.
+     */
+    static final String UNICODE_TEXT = "A\uD83D\uDE00B";
+    static final String UNICODE_TEXT_FIELD_NAME = "Unicode text";
+
     private AtspiTestApp() {
     }
 
@@ -43,6 +56,20 @@ public final class AtspiTestApp {
         SwingUtilities.invokeLater(() -> {
             JPanel panel = new JPanel();
             panel.add(new JButton("First"));
+
+            // A text with a character outside the BMP, for the text offsets of test_atspi.py.
+            JTextField unicodeField = new JTextField(UNICODE_TEXT, 10);
+            unicodeField.getAccessibleContext().setAccessibleName(UNICODE_TEXT_FIELD_NAME);
+            // F2 selects the emoji, the chars 1 and 2. The tests press single keys only, and how many chars an
+            // arrow key moves the caret over a surrogate pair is up to the view that Swing chooses for the text.
+            unicodeField.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0), "select-emoji");
+            unicodeField.getActionMap().put("select-emoji", new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    unicodeField.select(1, 3);
+                }
+            });
+            panel.add(unicodeField);
 
             // File -> Open, Recent -> Project: a menu with a submenu, for the keyboard navigation of test_orca.py.
             JMenu recentMenu = new JMenu("Recent");

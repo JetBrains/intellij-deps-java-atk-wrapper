@@ -29,8 +29,10 @@ from gi.repository import Atspi  # noqa: E402
 
 import pytest  # noqa: E402
 
-from conftest import FRAME_NAME, wait_for  # noqa: E402
-from orca_speech import KEY_DOWN, KEY_ESCAPE, KEY_F10, KEY_LEFT, KEY_RIGHT, press, start_orca  # noqa: E402
+from conftest import (  # noqa: E402
+    FRAME_NAME, KEY_DOWN, KEY_ESCAPE, KEY_F10, KEY_LEFT, KEY_RIGHT, press, wait_for,
+)
+from orca_speech import start_orca  # noqa: E402
 
 FOCUSED = "object:state-changed:focused"
 

@@ -19,6 +19,10 @@
 These tests cover only what the unit tests cannot reach: the start of the wrapper in an application, the AWT
 window and focus events, the calls between the GLib thread and the EDT, and the delivery over D-Bus. A behavior
 that a unit test in wrapper/test/ or jni/tests/ can check belongs there.
+
+The text tests are here because a text offset crosses every layer: Swing counts in the `char`s of a Java
+`String`, ATK in characters, and the AT-SPI bridge reads the text of an event back from the object. Only on the
+bus are the answer to a request and the event of the same change seen together, as a screen reader sees them.
 """
 
 import gi
@@ -26,8 +30,25 @@ import gi
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
-from conftest import FRAME_NAME, SANITIZER_MESSAGES, wait_for  # noqa: E402
-from orca_speech import KEY_ESCAPE, KEY_F10, press  # noqa: E402
+import pytest  # noqa: E402
+
+from conftest import (  # noqa: E402
+    FRAME_NAME, KEY_BACKSPACE, KEY_END, KEY_ESCAPE, KEY_F2, KEY_F10, KEY_HOME, KEY_LEFT, KEY_X,
+    SANITIZER_MESSAGES, find_descendant, press, wait_for,
+)
+
+# The text field of AtspiTestApp, see UNICODE_TEXT_FIELD_NAME and UNICODE_TEXT there: "A", an emoji outside the
+# BMP and "B". The emoji is one character for ATK and two `char`s for Swing, so behind it the two count
+# differently: the caret between the emoji and "B" is at the Swing index 3 and at the ATK offset 2.
+TEXT_FIELD_NAME = "Unicode text"
+EMOJI = "\U0001F600"
+TEXT = "A" + EMOJI + "B"
+
+FOCUSED = "object:state-changed:focused"
+CARET_MOVED = "object:text-caret-moved"
+TEXT_INSERTED = "object:text-changed:insert"
+TEXT_DELETED = "object:text-changed:delete"
+SELECTION_CHANGED = "object:text-selection-changed"
 
 
 def test_application_is_on_the_bus(app):
@@ -85,6 +106,190 @@ def test_key_reaches_the_application(app, journal):
         # Close the menu, so that the application is left without an open popup.
         press(KEY_ESCAPE)
         press(KEY_ESCAPE)
+
+
+@pytest.fixture(scope="module")
+def text_field(app, journal):
+    """The text field of AtspiTestApp with the keyboard focus, so that the keys of a test go to it."""
+    wait_for(
+        lambda: journal.find("window:activate", role=Atspi.Role.FRAME, name=FRAME_NAME),
+        "window:activate from the frame",
+        journal=journal,
+    )
+    field = wait_for(
+        lambda: find_descendant(app.frame, TEXT_FIELD_NAME),
+        "the text field '%s' below the frame" % TEXT_FIELD_NAME,
+        journal=journal,
+    )
+    events_before = len(journal.events)
+    if not Atspi.Component.grab_focus(field):
+        pytest.fail("the text field '%s' refused the focus" % TEXT_FIELD_NAME)
+    wait_for(
+        lambda: journal.find(FOCUSED, name=TEXT_FIELD_NAME, detail1=1, start=events_before),
+        "%s from the text field '%s'" % (FOCUSED, TEXT_FIELD_NAME),
+        journal=journal,
+    )
+    return field
+
+
+def _text(field):
+    return Atspi.Text.get_text(field, 0, Atspi.Text.get_character_count(field))
+
+
+def _press(journal, key, key_name, *event_types):
+    """Presses a key and waits for the events of the text field that the key must cause, in their order.
+
+    Returns the events. The last one must be the last event that the key causes: the next key then finds no
+    late event of this one, which it would take for its own.
+    """
+    position = len(journal.events)
+    press(key)
+    found = []
+    for event_type in event_types:
+        def next_event():
+            for index in range(position, len(journal.events)):
+                event = journal.events[index]
+                if event.type == event_type and event.name == TEXT_FIELD_NAME:
+                    return index, event
+            return None
+
+        index, event = wait_for(
+            next_event,
+            "%s from the text field after the key %s" % (event_type, key_name),
+            journal=journal,
+        )
+        position = index + 1
+        found.append(event)
+    return found
+
+
+def _move_caret_to_start(field, journal):
+    """Puts the caret before the first character, which also removes a selection."""
+    if Atspi.Text.get_caret_offset(field) != 0:
+        _press(journal, KEY_HOME, "Home", CARET_MOVED)
+
+
+def _move_caret_behind_emoji(field, journal):
+    """Puts the caret between the emoji and "B": End, then Left over "B", a character of one `char`.
+
+    The caret never steps over the emoji here: how many `char`s an arrow key moves it over a surrogate pair is
+    up to the view that Swing chooses for the text.
+    """
+    _move_caret_to_start(field, journal)
+    _press(journal, KEY_END, "End", CARET_MOVED)
+    _press(journal, KEY_LEFT, "Left", CARET_MOVED)
+    assert Atspi.Text.get_caret_offset(field) == 2, "the setup did not put the caret behind the emoji"
+
+
+def _type_and_erase(journal):
+    """Types "x" and erases it, so that the next change of the text is not the first one of the text field.
+
+    The native layer takes the length of a change from the character count that it stored at the previous
+    change (`Previous_Count` in AtkWrapper.c), and before the first change it has stored none. The length of
+    the first change is therefore not what these tests are about.
+    """
+    _press(journal, KEY_X, "x", TEXT_INSERTED, CARET_MOVED)
+    _press(journal, KEY_BACKSPACE, "BackSpace", TEXT_DELETED, CARET_MOVED)
+
+
+def test_text_with_emoji_is_read_in_characters(text_field):
+    """Checks: a text with a character outside the BMP has one character per code point: the text "A", emoji,
+    "B" has three characters, the emoji is the character 1 and "B" is the character 2.
+
+    Why (Swing, ATK, wrapper): Swing counts a text in the `char`s of a Java `String`, where the emoji takes two,
+    and ATK counts in characters of the UTF-8 text it returns. `AtkText` converts between the two. The native
+    tests check the conversion of a string to UTF-8, but not the offsets, and a screen reader that gets "B" at
+    the offset 3 reads past the end of the text.
+    """
+    assert Atspi.Text.get_character_count(text_field) == 3
+    assert _text(text_field) == TEXT
+    assert Atspi.Text.get_text(text_field, 1, 2) == EMOJI
+    assert Atspi.Text.get_text(text_field, 2, 3) == "B"
+    assert Atspi.Text.get_character_at_offset(text_field, 1) == ord(EMOJI)
+
+
+def test_caret_behind_emoji_is_reported_in_characters(text_field, journal):
+    """Checks: when the caret moves behind the emoji, both the caret offset of the text and `detail1` of
+    `object:text-caret-moved` are ATK character offsets: 3 at the end of the text, 2 between the emoji and "B".
+
+    Why (Swing, wrapper, Orca): Swing fires the caret property with the dot of the caret, an index in `char`s
+    (`AccessibleJTextComponent.caretUpdate`), which behind the emoji is one more than the ATK offset. A screen
+    reader takes the offset from the event or asks the text for it, and reads the character at that offset, so
+    the two must agree.
+    """
+    _move_caret_to_start(text_field, journal)
+
+    (moved_to_end,) = _press(journal, KEY_END, "End", CARET_MOVED)
+    offset_at_end = Atspi.Text.get_caret_offset(text_field)
+    (moved_behind_emoji,) = _press(journal, KEY_LEFT, "Left", CARET_MOVED)
+    offset_behind_emoji = Atspi.Text.get_caret_offset(text_field)
+
+    assert (offset_at_end, offset_behind_emoji) == (3, 2), "the caret offsets that the text reports"
+    assert (moved_to_end.detail1, moved_behind_emoji.detail1) == (3, 2), "detail1 of %s" % CARET_MOVED
+
+
+def test_selected_emoji_is_one_character(text_field, journal):
+    """Checks: when the application selects the emoji, the text reports one selection from the offset 1 to the
+    offset 2, and the text of that range is the emoji.
+
+    Why (Swing, wrapper): the selection of Swing is the `char`s 1 to 3, both halves of the surrogate pair.
+    Reported as it is, it would cover "B" as well for a client that counts in characters. The key F2 of
+    AtspiTestApp makes the selection, so that it does not depend on how the arrow keys step over the pair.
+    """
+    _move_caret_to_start(text_field, journal)
+
+    _press(journal, KEY_F2, "F2", SELECTION_CHANGED)
+
+    assert Atspi.Text.get_n_selections(text_field) == 1
+    selection = Atspi.Text.get_selection(text_field, 0)
+    assert (selection.start_offset, selection.end_offset) == (1, 2)
+    assert Atspi.Text.get_text(text_field, selection.start_offset, selection.end_offset) == EMOJI
+    assert Atspi.Text.get_caret_offset(text_field) == 2
+
+
+def test_typing_behind_emoji_reports_character_offsets(text_field, journal):
+    """Checks: typing "x" behind the emoji delivers `object:text-changed:insert` with the offset 2, the length 1
+    and the text "x", and erasing it delivers `object:text-changed:delete` with the offset 2 and the length 1.
+
+    Why (Swing, ATK, wrapper): Swing fires the text property with the `char` index of the change
+    (`AccessibleJTextComponent.insertUpdate` and `removeUpdate`), 3 here, and no length. The native layer
+    computes the length from the character counts, and the AT-SPI bridge reads the inserted text back from
+    the object at the offset of the event. With the `char` index as the offset, the event would carry "B", the
+    character behind the typed one, and a screen reader would echo the wrong character.
+    """
+    _move_caret_behind_emoji(text_field, journal)
+    _type_and_erase(journal)
+
+    inserted, _ = _press(journal, KEY_X, "x", TEXT_INSERTED, CARET_MOVED)
+    text_with_x = _text(text_field)
+    deleted, _ = _press(journal, KEY_BACKSPACE, "BackSpace", TEXT_DELETED, CARET_MOVED)
+
+    # The asserts come after both keys, so that a failure leaves the text of the field as the other tests
+    # expect it.
+    assert text_with_x == "A" + EMOJI + "xB"
+    assert _text(text_field) == TEXT
+    assert (inserted.detail1, inserted.detail2, inserted.event.any_data) == (2, 1, "x"), TEXT_INSERTED
+    assert (deleted.detail1, deleted.detail2) == (2, 1), TEXT_DELETED
+
+
+def test_erasing_emoji_removes_one_character(text_field, journal):
+    """Checks: BackSpace behind the emoji removes the whole emoji and delivers `object:text-changed:delete`
+    with the offset 1 and the length 1; the text is then "AB" with two characters and the caret at the offset 1.
+
+    Why (Swing, wrapper): Swing removes both `char`s of a surrogate pair at once
+    (`DefaultEditorKit.DeletePrevCharAction`), so the document shrinks by two. For ATK one character went away.
+
+    This test changes the text of the field for good, so it must stay the last of the text tests.
+    """
+    _move_caret_behind_emoji(text_field, journal)
+    _type_and_erase(journal)
+
+    deleted, _ = _press(journal, KEY_BACKSPACE, "BackSpace", TEXT_DELETED, CARET_MOVED)
+
+    assert _text(text_field) == "AB"
+    assert Atspi.Text.get_character_count(text_field) == 2
+    assert (deleted.detail1, deleted.detail2) == (1, 1), TEXT_DELETED
+    assert Atspi.Text.get_caret_offset(text_field) == 1
 
 
 # The test below looks at what the application did during the tests above, so it must stay the last one of this
