@@ -58,4 +58,5 @@ wrapper/java-atk-wrapper.jar
 
 tests/atspi/build
 tests/atspi/logs
+tests/atspi/logs-orca
 __pycache__/
