@@ -1,70 +1,72 @@
 ---
 name: java-unit-tests
 description: >-
-  Write, update, review and run JUnit tests in wrapper/test/ when changing the Java layer
-  (wrapper/org/GNOME/Accessibility/). Use for bug fixes, behavior changes, workaround removal,
-  test coverage reviews, and requests to add or fix Java unit tests.
+  Write, review and run the JUnit tests in wrapper/test/ for the Java layer (wrapper/org/GNOME/Accessibility/):
+  Swing event translation, JNI upcalls, focus handling, context registration. Use together with the testing skill
+  when changing the Java layer, and for requests to add, fix or explain Java unit tests.
 ---
 
 # Java unit tests
 
-A change that touches only the Java layer comes with unit tests. The Java layer is
-`wrapper/org/GNOME/Accessibility/*.java` and `AtkWrapper.java.in`; `AtkWrapper.java` is generated from the `.in`
-file, so edit and test the `.in` file only.
+The `testing` skill says when a test is required, which layer gets it, what a test asserts and how to prove that
+it protects the fix. Follow it first; this skill describes the Java layer.
 
-## When a test is required
+The Java layer is `wrapper/org/GNOME/Accessibility/*.java` and `AtkWrapper.java.in`. `AtkWrapper.java` is generated
+from the `.in` file, so edit and test the `.in` file only. The tests are in `wrapper/test/org/GNOME/Accessibility/`,
+in the package of the wrapper, so they reach its package-private members.
 
-- A change in the Java layer only, with no change in `jni/`: add or change tests that cover the new behavior.
-- A change in both layers: test the Java part when it can be driven without native code.
-- No new test is needed for a change that does not change behavior: comments, formatting, a rename, or a refactor
-  that the existing tests already cover. Run the tests anyway.
-- If the behavior cannot be tested here, because it needs native code, a display, the real keyboard focus or
-  Orca, do not skip it silently. Tell the user what is not covered and why.
+## How the tests work
 
-## What to test
+The tests run headless and without `libatk-wrapper.so`. Every native call that the Java layer makes after
+initialization goes through `NativeBridge`, and the static field `AtkWrapper.nativeBridge` holds the
+implementation. A test replaces it with a `RecordingNativeBridge`, which records the calls instead of making them.
 
-Test the contract that reaches the native layer or an assistive technology, not the internals of the fix:
+- `AtkTestBase`: the base class of every test class. Before each test it installs a new `RecordingNativeBridge`
+  and resets the static state of the wrapper with `AtkWrapper.forgetFocusHistory()` and
+  `AtkWrapperDisposer.forgetRegisteredContexts()`. It gives `onEdt(...)`, which runs code on the EDT and rethrows
+  its exceptions, `invokeStatic(...)`, which calls a private JNI upcall the way the native layer does, and
+  `createTreeModelRoot()`, the tree model of the tree tests.
+- `RecordingNativeBridge`: `calls()`, `calls("focusNotify")`, `signals(AtkSignal.…)` for the `emitSignal` calls
+  with one id, `createdResources()` and `releasedResources()` for the contexts registered with the native layer,
+  `clear()` to forget what the setup caused.
+- `TestEnvironmentTest`: fails with a clear message when the tests run without `-Djava.awt.headless=true` or with
+  the native library on the class path.
 
-- The native calls the wrapper makes for a Swing event: `bridge.calls()`, `bridge.calls("focusNotify")`,
-  `bridge.signals(AtkSignal.…)`. Assert on the count and on the objects with `assertSame`: the native layer maps an
-  `AccessibleContext` to its ATK object by identity, so a new context is a new object for Orca.
-- The result of a JNI upcall, such as `AtkObject.get_accessible_parent`, called the way the native layer calls it.
-- The registration of every context that is passed to the native layer: `bridge.createdResources()`.
-- The cases that must not change: the neighbors of the fixed case, and the cases a workaround must leave alone.
-  A workaround for menus needs a test that a popup of a button keeps its old behavior.
+Examples to follow: `MenuAccessibilityTest` (upcalls, a listener of the `AtkWrapper` constructor, neighboring
+cases), `JTreeSignalsTest` (signals from Swing property changes), `JTreeContextCacheManagerTest` (a cache, a
+`precondition_…` test).
 
-If the fix relies on a Swing behavior, pin that behavior in its own test named `precondition_…`. It runs no wrapper
-code, and it fails when a JDK update removes the reason for the workaround.
+## What can be tested
 
-## How the tests run
+- The signals of `AtkWrapper.propertyChangeListener` for Swing property changes: text caret, insert and delete,
+  children, selection, visible data, value, name, description, table changes, `objectStateChange`.
+- The focus logic of `AtkWrapper.dispatchFocusEvent(...)`: repeated focus, menus and the root pane, active
+  descendants.
+- The JNI upcalls of `AtkObject`, `AtkText`, `AtkTable`, `AtkComponent`, `AtkAction`, `AtkValue`, `AtkSelection` and
+  the other `Atk*` classes, through `invokeStatic(...)`.
+- The registration of every context passed to the native layer: `bridge.createdResources()`.
+- The listeners that the `AtkWrapper` constructor creates, such as `menuSelectionListener`, and helpers such as
+  `JTreeContextCacheManager`.
 
-The tests run headless and without `libatk-wrapper.so`. Extend `AtkTestBase`; it installs a new
-`RecordingNativeBridge` for each test in `AtkWrapper.nativeBridge` and resets the static state of the wrapper.
+Not here: the ATK objects of the native layer, real windows and focus, the GLib thread, D-Bus. See `testing`.
 
-- Run Swing component access and mutations on the EDT through `onEdt(...)`.
-- Invoke wrapper entry points from the thread used in production when thread behavior matters. Do not force JNI
+## Writing a test
+
+- Extend `AtkTestBase`. Run Swing component access and mutations on the EDT through `onEdt(...)`.
+- Invoke a wrapper entry point from the thread used in production when thread behavior matters. Do not force JNI
   upcalls onto the EDT unless their contract requires it: the native layer calls them from its own thread, and
   many of them hop to the EDT themselves through `AtkUtil.invokeInSwingAndWait`.
-- Wait for asynchronous EDT work to complete before asserting on recorded native calls. `AtkUtil.invokeInSwing`
-  runs the code at once on the EDT but posts it with `invokeLater` from another thread, so the call may not have
-  happened yet when the test asserts.
+- `AtkUtil.invokeInSwing` runs the code at once on the EDT but posts it with `invokeLater` from another thread.
+  Wait for that work, for example with an empty `onEdt(...)`, before asserting on recorded calls.
 - `AtkUtil.invokeInSwing` and `invokeInSwingAndWait` catch and log exceptions, so an exception in the wrapper does
-  not fail the test by itself:
-  - A missing native call or signal does not prove that the wrapper completed successfully: an exception may have
-    stopped execution before the call. For negative assertions, also verify that the relevant code path ran, for
-    example that a neighboring call was recorded or that the same setup emits the call in a positive case.
-  - Surface unexpected wrapper exceptions when possible. Do not treat logged exceptions as successful execution.
-- Call private JNI upcalls through `invokeStatic(...)` when testing their native-facing contract.
-- Prefer testing other behavior through existing entry points. Do not weaken member visibility solely to test
-  implementation details. Introduce a package-private test seam only when a necessary contract cannot otherwise
-  be observed. Tell the user about a new seam: `docs/fork-notes.md` lists the test seams as a permanent diff with
-  upstream, and only the user edits that file.
+  not fail the test by itself. A missing call proves nothing without a proof that the path ran, see `testing`.
+- Compare contexts with `assertSame`: the native layer maps an `AccessibleContext` to its ATK object by identity.
 - The native layer adds `AtkWrapper.propertyChangeListener` to every context it exposes. A test that relies on
   Swing property changes adds it to the contexts it needs and removes it in `@AfterEach`. Without it, the bridge
   records only what the code under test calls directly, which is useful when a test must not see the events of
   Swing.
 - The constructor of `AtkWrapper` registers no listeners while accessibility is disabled, and it is disabled in the
-  tests. Take the listener from `new AtkWrapper()` and register it in the test, see `MenuAccessibilityTest`.
+  tests. Take the listener from `onEdt(AtkWrapper::new)` and register it in the test.
 - There is no display and no real focus. Call `AtkWrapper.dispatchFocusEvent(...)` instead of requesting the focus,
   and do not show windows.
 - A change that adds static state to `AtkWrapper` or `AtkWrapperDisposer` also resets it in
@@ -72,51 +74,25 @@ The tests run headless and without `libatk-wrapper.so`. Extend `AtkTestBase`; it
   leaks into the next one.
 - Do not restore the production bridge and do not put `libatk-wrapper.so` on the class path: the disposer thread
   releases the fake handles of a recording bridge after the test, and native code would get them.
-
-The tree tests share `createTreeModelRoot()` from `AtkTestBase`. Put a helper there only when two test classes use
-it.
-
-## Prove that the tests protect the fix
-
-The tests of a fix have different jobs. A regression test reproduces the original bug and fails without the fix.
-A test of the neighboring cases checks that the fix leaves them alone, and a `precondition_…` test pins a Swing
-behavior; both may pass without the fix, and that is correct. Know which job each new test has.
-
-1. Run the new tests with the fix: they all pass.
-2. Run them against the code without the fix: at least one regression test fails, for the reason the fix
-   addresses.
-3. If no test fails without the fix, the set has no regression test: add one, or change the test meant to
-   reproduce the bug until it does. Do not change a test of a neighboring case or a precondition only to make it
-   fail without the fix.
-
-Run the code without the fix in isolation, never in the user's working tree. Do not use `git stash`, `git reset`
-or `git checkout` for this check: the working tree can hold uncommitted or partly staged changes of the user,
-which would be hidden, restored with conflicts, or mixed with the old version of the code. Copy the sources and
-the tests into a temporary directory and revert the fix there, or use a separate worktree
-(`git worktree add <tmp> <commit>`), and remove it afterwards.
+- Put a helper into `AtkTestBase` only when two test classes use it.
+- Document every test as `test-docs` describes for Java.
 
 ## Run the tests
 
+`make check` runs them, on any OS. `README.md` describes the options: `JUNIT_CONSOLE_JAR` for a local JUnit jar,
+`MAVEN_REPOSITORY_URL` for a mirror, `JUNIT_REPORTS_DIR` for the reports.
+
+Without a configured tree, or for a worktree without the fix, compile into a temporary directory the way
+`check-local` in `Makefile.am` does. Take the JUnit version and the SHA-256 from `Makefile.am`. Copying
+`AtkWrapper.java.in` works only while it has no `@…@` placeholders for `configure`.
+
 ```bash
-make check
+junit=<junit-platform-console-standalone jar>
+tmp=$(mktemp -d)
+cp wrapper/org/GNOME/Accessibility/AtkWrapper.java.in "$tmp/AtkWrapper.java"
+javac -cp "$junit" -d "$tmp/classes" "$tmp/AtkWrapper.java" \
+    $(find wrapper/org/GNOME/Accessibility wrapper/test -name '*.java' ! -name AtkWrapper.java)
+java -Djava.awt.headless=true -jar "$junit" execute --disable-banner \
+    --class-path "$tmp/classes" --scan-class-path "$tmp/classes"   # or --select-class org.GNOME.Accessibility.<Test>
+rm -rf "$tmp"
 ```
-
-`README.md` describes the options: a local JUnit jar, a Maven mirror, the reports directory. Without a configured
-tree, compile the Java sources and the tests into a temporary directory and run the JUnit console launcher with
-`-Djava.awt.headless=true`, the way `check-local` in `Makefile.am` does. Copy `AtkWrapper.java.in` to
-`AtkWrapper.java` there; this works only while the `.in` file has no `@…@` placeholders for `configure`. Use the
-JUnit version and the SHA-256 from `Makefile.am`. Do not leave build output in the repository.
-
-## Document and report
-
-- Give every new test a Javadoc in the format of the `test-javadoc` skill.
-- Report to the user which tests you added or changed, the runs with and without the fix, and what stays
-  untested and why.
-- This skill writes and runs tests; it does not commit. Commit only when the user asks, and follow the
-  `git-commit` skill then.
-
-When preparing a commit:
-
-- Include the tests with the change they cover. Tests for a change that is already committed go into their own
-  commit with the ticket of that change; its body starts with `A test commit for <sha>.`
-- Put the runs with and without the fix, and what stays untested, into `Evidence:`.
