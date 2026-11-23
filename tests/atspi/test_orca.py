@@ -24,8 +24,10 @@ import os
 
 import pytest
 
-from conftest import FRAME_NAME, wait_for, window_is_active
-from orca_speech import KEY_DOWN, KEY_ESCAPE, KEY_F10, KEY_LEFT, KEY_RIGHT, press, start_orca
+from conftest import (
+    FRAME_NAME, KEY_DOWN, KEY_ESCAPE, KEY_F10, KEY_LEFT, KEY_RIGHT, press, wait_for, window_is_active,
+)
+from orca_speech import start_orca
 
 FOCUSED = "object:state-changed:focused"
 

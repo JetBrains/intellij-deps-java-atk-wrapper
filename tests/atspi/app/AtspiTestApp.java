@@ -22,6 +22,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
 /**
@@ -36,6 +37,13 @@ public final class AtspiTestApp {
 
     static final String FRAME_TITLE = "ATK wrapper test";
 
+    /**
+     * "A", an emoji outside the BMP (U+1F600) and "B". The emoji is one character for ATK and two {@code char}s
+     * of a Java {@code String}, so every Swing index after it differs from the ATK offset.
+     */
+    static final String UNICODE_TEXT = "A\uD83D\uDE00B";
+    static final String UNICODE_TEXT_FIELD_NAME = "Unicode text";
+
     private AtspiTestApp() {
     }
 
@@ -43,6 +51,11 @@ public final class AtspiTestApp {
         SwingUtilities.invokeLater(() -> {
             JPanel panel = new JPanel();
             panel.add(new JButton("First"));
+
+            // A text with a character outside the BMP, for the text offsets of test_atspi.py.
+            JTextField unicodeField = new JTextField(UNICODE_TEXT, 10);
+            unicodeField.getAccessibleContext().setAccessibleName(UNICODE_TEXT_FIELD_NAME);
+            panel.add(unicodeField);
 
             // File -> Open, Recent -> Project: a menu with a submenu, for the keyboard navigation of test_orca.py.
             JMenu recentMenu = new JMenu("Recent");
