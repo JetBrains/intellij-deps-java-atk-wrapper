@@ -83,16 +83,25 @@ Not here: the ATK objects of the native layer, real windows and focus, the GLib 
 `MAVEN_REPOSITORY_URL` for a mirror, `JUNIT_REPORTS_DIR` for the reports.
 
 Without a configured tree, or for a worktree without the fix, compile into a temporary directory the way
-`check-local` in `Makefile.am` does. Take the JUnit version and the SHA-256 from `Makefile.am`. Copying
-`AtkWrapper.java.in` works only while it has no `@…@` placeholders for `configure`.
+`check-local` in `Makefile.am` does. The JUnit jar is the one that `make check` downloaded into `test-lib/` of the
+main tree; a worktree has none of its own. If it is missing, run `make check` once in the main tree, or download
+the jar with the version and the SHA-256 from `Makefile.am`. Copying `AtkWrapper.java.in` works only while it has
+no `@…@` placeholders for `configure`.
 
 ```bash
-junit=<junit-platform-console-standalone jar>
+# test-lib/ of the main tree, also from a worktree.
+junit=$(ls "$(git rev-parse --path-format=absolute --git-common-dir)"/../test-lib/junit-platform-console-standalone-*.jar)
 tmp=$(mktemp -d)
 cp wrapper/org/GNOME/Accessibility/AtkWrapper.java.in "$tmp/AtkWrapper.java"
 javac -cp "$junit" -d "$tmp/classes" "$tmp/AtkWrapper.java" \
     $(find wrapper/org/GNOME/Accessibility wrapper/test -name '*.java' ! -name AtkWrapper.java)
 java -Djava.awt.headless=true -jar "$junit" execute --disable-banner \
-    --class-path "$tmp/classes" --scan-class-path "$tmp/classes"   # or --select-class org.GNOME.Accessibility.<Test>
+    --class-path "$tmp/classes" --scan-class-path "$tmp/classes"
+# One class: --select-class org.GNOME.Accessibility.MenuAccessibilityTest instead of --scan-class-path.
 rm -rf "$tmp"
 ```
+
+A run, also `make check`, logs `SEVERE: Error during ATK accessibility initialization` with an
+`IOException: Native library not found in resources` and then `AtkWrapper not initialized due to disabled
+accessibility`. That is expected: the static initializer of `AtkWrapper` looks for `libatk-wrapper.so`, which the
+tests leave out on purpose (`TestEnvironmentTest` checks it). The result is the summary at the end of the run.
