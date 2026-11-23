@@ -167,6 +167,23 @@ static void test_description_with_non_bmp_character(void) {
     g_assert_cmpstr(description, ==, NON_BMP_TEXT);
 }
 
+/*
+ * A component that is not a java.awt.Window does not implement AtkWindow. The
+ * AT-SPI bridge turns the signals of AtkWindow into the window: events, so on
+ * a button they would be reported as events of a window. The positive case,
+ * the frame of a running application, is test_window_activation_is_reported in
+ * tests/atspi/: these tests run headless and cannot build a window.
+ */
+static void test_component_is_not_a_window(void) {
+    jobject context =
+        jaw_test_fixture("button", STRING_FIXTURE, jaw_test_string("OK"));
+    AtkObject *object = jaw_test_atk_object(context);
+
+    g_assert_nonnull(object);
+    g_assert_true(ATK_IS_COMPONENT(object));
+    g_assert_false(ATK_IS_WINDOW(object));
+}
+
 int main(int argc, char **argv) {
     jaw_test_init(&argc, &argv);
 
@@ -183,6 +200,8 @@ int main(int argc, char **argv) {
                  test_name_with_non_bmp_character);
     jaw_test_add("/jaw/object/description-with-non-bmp-character",
                  test_description_with_non_bmp_character);
+    jaw_test_add("/jaw/impl/component-is-not-a-window",
+                 test_component_is_not_a_window);
 
     return jaw_test_run();
 }

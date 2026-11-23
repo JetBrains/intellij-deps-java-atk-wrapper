@@ -58,8 +58,23 @@ import java.util.Locale;
  */
 public class AtkObject {
 
+    /**
+     * The class of the accessible context of every {@link java.awt.Window}: {@code JFrame}, {@code JDialog} and
+     * {@code JWindow} extend it, also the heavyweight popups of Swing. It is protected, so the wrapper finds it by
+     * name; null if a JDK does not have it, and then no context gets {@link AtkInterface#INTERFACE_WINDOW}.
+     */
+    private static final Class<?> WINDOW_CONTEXT_CLASS = findClass("java.awt.Window$AccessibleAWTWindow");
+
     // need to fix [missing-explicit-ctor]
     private AtkObject() {
+    }
+
+    private static Class<?> findClass(String name) {
+        try {
+            return Class.forName(name, false, AtkObject.class.getClassLoader());
+        } catch (ClassNotFoundException | LinkageError e) {
+            return null;
+        }
     }
 
     /**
@@ -156,6 +171,11 @@ public class AtkObject {
             }
             if (ac.getAccessibleValue() != null) {
                 flags |= AtkInterface.INTERFACE_VALUE;
+            }
+            // The native layer emits the window signals only on an AtkWindow; the AT-SPI bridge listens to the
+            // signals of that interface and not to signals of the same name elsewhere.
+            if (WINDOW_CONTEXT_CLASS != null && WINDOW_CONTEXT_CLASS.isInstance(ac)) {
+                flags |= AtkInterface.INTERFACE_WINDOW;
             }
             return flags;
         }, 0);

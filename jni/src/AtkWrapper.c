@@ -222,6 +222,20 @@ Java_org_GNOME_Accessibility_AtkWrapper_initNativeLibrary(JNIEnv *env,
     return JNI_TRUE;
 }
 
+/*
+ * Emits a signal of AtkWindow. Only the ATK object of a java.awt.Window
+ * implements it, see INTERFACE_WINDOW; the AT-SPI bridge turns these signals
+ * into the window: events.
+ */
+static void emit_window_signal(AtkObject *atk_obj, const gchar *signal_name) {
+    if (!ATK_IS_WINDOW(atk_obj)) {
+        g_debug("%s: %p is not an AtkWindow, no signal %s", G_STRFUNC,
+                (void *)atk_obj, signal_name);
+        return;
+    }
+    g_signal_emit_by_name(atk_obj, signal_name);
+}
+
 static guint jni_main_idle_add(GSourceFunc function, gpointer data) {
     JAW_DEBUG("%p, %p", function, data);
     GSource *source;
@@ -523,7 +537,7 @@ static gboolean window_open_handler(gpointer p) {
             g_object_notify(G_OBJECT(atk_get_root()), "accessible-name");
             g_signal_emit_by_name(ATK_OBJECT(atk_get_root()),
                                   "children-changed::add", n, atk_obj);
-            g_signal_emit_by_name(atk_obj, "create");
+            emit_window_signal(atk_obj, "create");
         }
     }
 
@@ -585,7 +599,7 @@ static gboolean window_close_handler(gpointer p) {
             g_object_notify(G_OBJECT(atk_get_root()), "accessible-name");
             g_signal_emit_by_name(ATK_OBJECT(atk_get_root()),
                                   "children-changed::remove", n, atk_obj);
-            g_signal_emit_by_name(atk_obj, "destroy");
+            emit_window_signal(atk_obj, "destroy");
         }
     }
 
@@ -627,7 +641,7 @@ static gboolean window_minimize_handler(gpointer p) {
         return FALSE;
     }
 
-    g_signal_emit_by_name(atk_obj, "minimize");
+    emit_window_signal(atk_obj, "minimize");
 
     free_callback_para(para);
 
@@ -667,7 +681,7 @@ static gboolean window_maximize_handler(gpointer p) {
         return FALSE;
     }
 
-    g_signal_emit_by_name(atk_obj, "maximize");
+    emit_window_signal(atk_obj, "maximize");
 
     free_callback_para(para);
 
@@ -706,7 +720,7 @@ static gboolean window_restore_handler(gpointer p) {
         return FALSE;
     }
 
-    g_signal_emit_by_name(atk_obj, "restore");
+    emit_window_signal(atk_obj, "restore");
 
     free_callback_para(para);
 
@@ -747,7 +761,7 @@ static gboolean window_activate_handler(gpointer p) {
         return FALSE;
     }
 
-    g_signal_emit_by_name(atk_obj, "activate");
+    emit_window_signal(atk_obj, "activate");
 
     free_callback_para(para);
 
@@ -787,7 +801,7 @@ static gboolean window_deactivate_handler(gpointer p) {
         return FALSE;
     }
 
-    g_signal_emit_by_name(atk_obj, "deactivate");
+    emit_window_signal(atk_obj, "deactivate");
 
     free_callback_para(para);
 

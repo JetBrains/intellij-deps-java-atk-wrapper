@@ -337,6 +337,12 @@ GType jaw_impl_get_type(guint tflag) {
         (GInterfaceInitFunc)jaw_table_cell_interface_init,
         (GInterfaceFinalizeFunc)NULL, NULL};
 
+    // AtkWindow has no methods, only signals: the window signals of
+    // AtkWrapper.c are emitted on it, and the AT-SPI bridge listens to them
+    // as Atk:AtkWindow:<signal>.
+    static const GInterfaceInfo atk_window_info = {
+        (GInterfaceInitFunc)NULL, (GInterfaceFinalizeFunc)NULL, NULL};
+
     g_mutex_lock(&typeTableMutex);
     if (typeTable == NULL) {
         typeTable = g_hash_table_new(NULL, NULL);
@@ -399,6 +405,10 @@ GType jaw_impl_get_type(guint tflag) {
         if (tflag & org_GNOME_Accessibility_AtkInterface_INTERFACE_TABLE_CELL)
             g_type_add_interface_static(type, ATK_TYPE_TABLE_CELL,
                                         &atk_table_cell_info);
+
+        if (tflag & org_GNOME_Accessibility_AtkInterface_INTERFACE_WINDOW)
+            g_type_add_interface_static(type, ATK_TYPE_WINDOW,
+                                        &atk_window_info);
 
         g_hash_table_insert(typeTable, GINT_TO_POINTER(tflag),
                             JAW_TYPE_TO_POINTER(type));

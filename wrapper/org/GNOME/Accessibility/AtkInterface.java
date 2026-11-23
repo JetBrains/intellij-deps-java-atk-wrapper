@@ -93,5 +93,13 @@ public interface AtkInterface {
      */
     @Native
     int INTERFACE_VALUE = 0x00001000;
+
+    /**
+     * The ATK interface of a window. It has no methods, only the signals the AT-SPI bridge turns into the
+     * {@code window:} events: create, destroy, activate, deactivate, minimize, maximize, restore.
+     * Java has no counterpart; the flag marks the accessible context of a {@link java.awt.Window}.
+     */
+    @Native
+    int INTERFACE_WINDOW = 0x00002000;
 }
 

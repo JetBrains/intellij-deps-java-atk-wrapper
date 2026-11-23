@@ -26,7 +26,7 @@ import gi
 gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
-from conftest import FRAME_NAME, SANITIZER_MESSAGES  # noqa: E402
+from conftest import FRAME_NAME, SANITIZER_MESSAGES, wait_for  # noqa: E402
 
 
 def test_application_is_on_the_bus(app):
@@ -40,6 +40,19 @@ def test_application_is_on_the_bus(app):
     assert app.application.get_toolkit_name() == "J2SE-access-bridge"
     assert app.frame.get_role() == Atspi.Role.FRAME
     assert app.frame.get_name() == FRAME_NAME
+
+
+def test_window_activation_is_reported(app, journal):
+    """Checks: when the window becomes active, the bus delivers `window:activate` with the frame as its source.
+
+    Why (wrapper): `windowActivated` of the window adapter of AtkWrapper sends the activation to the native
+    layer, which emits the ATK signal `activate` on the window. Only a real window manager activates a window.
+    """
+    wait_for(
+        lambda: journal.find("window:activate", role=Atspi.Role.FRAME, name=FRAME_NAME),
+        "window:activate from the frame",
+        journal=journal,
+    )
 
 
 # The test below looks at what the application did during the tests above, so it must stay the last one of this

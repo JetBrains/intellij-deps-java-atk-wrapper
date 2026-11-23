@@ -106,35 +106,11 @@ static AtkObject *jaw_object_ref_child(AtkObject *atk_obj, gint i);
 
 static gpointer parent_class = NULL;
 
-enum {
-    ACTIVATE,
-    CREATE,
-    DEACTIVATE,
-    DESTROY,
-    MAXIMIZE,
-    MINIMIZE,
-    MOVE,
-    RESIZE,
-    RESTORE,
-    LAST_SIGNAL
-};
-
-static guint jaw_window_signals[LAST_SIGNAL] = {
-    0,
-};
-
 G_DEFINE_TYPE(JawObject, jaw_object, ATK_TYPE_OBJECT);
 
 #define JAW_GET_OBJECT(atk_obj, def_ret)                                       \
     JAW_GET_OBJ(atk_obj, JAW_OBJECT, JawObject, jaw_obj, acc_context, jniEnv,  \
                 ac, def_ret)
-
-static guint jaw_window_add_signal(const gchar *name, JawObjectClass *klass) {
-    JAW_DEBUG("%s, %p", name, klass);
-    return g_signal_new(name, G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST, 0,
-                        (GSignalAccumulator)NULL, NULL,
-                        g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
-}
 
 static void jaw_object_class_init(JawObjectClass *klass) {
     JAW_DEBUG("%p", klass);
@@ -170,16 +146,6 @@ static void jaw_object_class_init(JawObjectClass *klass) {
     atk_class->initialize = jaw_object_initialize;
     atk_class->get_attributes = NULL; // TODO: atk_class->get_attributes
     atk_class->get_object_locale = jaw_object_get_object_locale;
-
-    jaw_window_signals[ACTIVATE] = jaw_window_add_signal("activate", klass);
-    jaw_window_signals[CREATE] = jaw_window_add_signal("create", klass);
-    jaw_window_signals[DEACTIVATE] = jaw_window_add_signal("deactivate", klass);
-    jaw_window_signals[DESTROY] = jaw_window_add_signal("destroy", klass);
-    jaw_window_signals[MAXIMIZE] = jaw_window_add_signal("maximize", klass);
-    jaw_window_signals[MINIMIZE] = jaw_window_add_signal("minimize", klass);
-    jaw_window_signals[MOVE] = jaw_window_add_signal("move", klass);
-    jaw_window_signals[RESIZE] = jaw_window_add_signal("resize", klass);
-    jaw_window_signals[RESTORE] = jaw_window_add_signal("restore", klass);
 
     klass->get_interface_data = NULL;
 }
