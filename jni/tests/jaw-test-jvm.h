@@ -32,6 +32,23 @@
  * The JVM always runs with -Xcheck:jni. A message of the JNI checks is reported
  * for the test during which the JVM printed it; with JAW_TEST_JNI_WARNINGS=fail
  * in the environment it fails that test.
+ *
+ * Writing a test:
+ * - Register it with jaw_test_add, not g_test_add_func.
+ * - Build components in a NativeTestFixtures method, which runs on the EDT.
+ *   Call ATK from the test thread, as the GLib thread does in production; the
+ *   wrapper moves to the EDT itself.
+ * - Keep the contexts of a fixture as JNI local references until the end of
+ *   the test: the disposer releases the ATK object of a context that the
+ *   garbage collector finds.
+ * - Create Java strings with jaw_test_string, not NewStringUTF, which takes
+ *   modified UTF-8.
+ * - Check the result of a fixture with g_assert_nonnull before using it: a
+ *   Java exception fails the test and returns NULL.
+ * - A known bug that the same change does not fix is a test that calls
+ *   g_test_incomplete while the bug is there; it shows as TODO in TAP.
+ * - The AT-SPI bridge, D-Bus and the GLib main loop thread are not available.
+ *   A behavior that needs them belongs to the AT-SPI integration tests.
  */
 
 #ifndef _JAW_TEST_JVM_H_
