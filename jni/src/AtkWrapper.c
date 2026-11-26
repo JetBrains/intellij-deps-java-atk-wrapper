@@ -144,6 +144,8 @@ static void jaw_cleanup_common(JNIEnv *jniEnv) {
     jaw_vdc_clear_last_ac(jniEnv);
     pthread_mutex_unlock(&jaw_vdc_dup_mutex);
 
+    /* The bridge cleanup can release the last reference to an instance. */
+    jaw_impl_keep_instances();
     atk_bridge_adaptor_cleanup();
 }
 

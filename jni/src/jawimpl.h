@@ -62,6 +62,14 @@ struct _JawImpl {
 JawImpl *jaw_impl_create_instance(JNIEnv *, jobject);
 JawImpl *jaw_impl_find_instance(JNIEnv *, jobject);
 
+/**
+ * jaw_impl_keep_instances:
+ *
+ * Makes each JawImpl instance stay alive until the process exits.
+ * Call it before atk_bridge_adaptor_cleanup().
+ */
+void jaw_impl_keep_instances(void);
+
 GType jaw_impl_get_type(guint);
 AtkRelationType jaw_impl_get_atk_relation_type(JNIEnv *jniEnv,
                                                jstring jrel_key);
