@@ -48,6 +48,12 @@ typedef struct _JawInterfaceInfo {
 
 static gpointer jaw_impl_parent_class = NULL;
 
+/*
+ * TRUE after jaw_impl_keep_instances(). A JawImpl instance then does not
+ * finalize. Read and write it with the g_atomic_int functions.
+ */
+static gint jaw_impl_instances_kept = FALSE;
+
 static GMutex typeTableMutex;
 static GHashTable *typeTable = NULL;
 
@@ -439,8 +445,25 @@ static void jaw_impl_class_init(JawImplClass *klass) {
     jaw_class->get_interface_data = jaw_impl_get_interface_data;
 }
 
+void jaw_impl_keep_instances(void) {
+    JAW_DEBUG("");
+    g_atomic_int_set(&jaw_impl_instances_kept, TRUE);
+}
+
 static void jaw_impl_dispose(GObject *gobject) {
     JAW_DEBUG("%p", gobject);
+
+    if (g_atomic_int_get(&jaw_impl_instances_kept)) {
+        /*
+         * at-spi2-core 2.56 to 2.60.4 can leave a weak reference to its
+         * destroyed object cache on an instance. The finalization would call
+         * that weak reference, and the process would crash. A new reference
+         * stops the finalization.
+         */
+        g_object_ref(gobject);
+        return;
+    }
+
     /* Chain up to parent's dispose */
     G_OBJECT_CLASS(jaw_impl_parent_class)->dispose(gobject);
 }
