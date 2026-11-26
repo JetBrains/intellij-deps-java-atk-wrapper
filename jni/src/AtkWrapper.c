@@ -25,6 +25,7 @@
 #include "org_GNOME_Accessibility_AtkSignal.h"
 #include "org_GNOME_Accessibility_AtkWrapper.h"
 #include <atk-bridge.h>
+#include <atspi/atspi.h>
 #include <glib.h>
 #include <gmodule.h>
 #include <jni.h>
@@ -119,7 +120,21 @@ static void jaw_cleanup_common(JNIEnv *jniEnv) {
     }
 
     if (jaw_main_context != NULL) {
-        atk_bridge_set_event_context(NULL);
+        /*
+         * atk_bridge_set_event_context() makes libatspi attach the connection
+         * of the accessibility bus to the new context. libatspi does not check
+         * the connection for NULL, and libdbus aborts the process on a NULL
+         * connection. The bus is not available when the desktop session ends
+         * before the JVM. The bridge then keeps its reference to the context
+         * until atk_bridge_adaptor_cleanup() closes the connection.
+         */
+        if (atspi_get_a11y_bus() != NULL) {
+            atk_bridge_set_event_context(NULL);
+        } else {
+            g_debug("%s: The accessibility bus is not available, the bridge "
+                    "keeps the event context",
+                    G_STRFUNC);
+        }
         g_main_context_unref(jaw_main_context);
         jaw_main_context = NULL;
         g_debug("%s: Main context unref'd", G_STRFUNC);
