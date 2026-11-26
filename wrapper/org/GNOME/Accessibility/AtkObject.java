@@ -37,6 +37,7 @@ import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
 import javax.accessibility.AccessibleTable;
 import javax.accessibility.AccessibleText;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -44,6 +45,7 @@ import javax.swing.KeyStroke;
 import java.awt.EventQueue;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.Arrays;
 import java.util.Locale;
 
 /**
@@ -316,9 +318,34 @@ public class AtkObject {
             if (stateSet == null) {
                 return null;
             } else {
-                return stateSet.toArray();
+                return exposedStates(ac, stateSet);
             }
         }, null);
+    }
+
+    /**
+     * Returns the states of the state set that the native layer exposes.
+     * <p>
+     * A label that is a Swing component and does not have the focus loses {@link AccessibleState#FOCUSABLE}.
+     * Swing reports this state for every {@code JLabel}, because {@code Component.isFocusable()} is true by default.
+     * Orca does not read a focusable label as the static text of a dialog.
+     * The items of lists and trees also have the label role, but they are not Swing components and keep the state.
+     *
+     * @param ac       the accessible context that owns the state set
+     * @param stateSet the state set of the context
+     * @return a new array of the exposed states
+     */
+    static AccessibleState[] exposedStates(AccessibleContext ac, AccessibleStateSet stateSet) {
+        AccessibleState[] states = stateSet.toArray();
+        if (!(ac instanceof JComponent.AccessibleJComponent)
+                || ac.getAccessibleRole() != AccessibleRole.LABEL
+                || !stateSet.contains(AccessibleState.FOCUSABLE)
+                || stateSet.contains(AccessibleState.FOCUSED)) {
+            return states;
+        }
+        return Arrays.stream(states)
+                .filter(state -> state != AccessibleState.FOCUSABLE)
+                .toArray(AccessibleState[]::new);
     }
 
     /**
