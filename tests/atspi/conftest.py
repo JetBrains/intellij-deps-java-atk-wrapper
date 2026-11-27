@@ -35,6 +35,8 @@ Writing a test:
   that closes a menu, wait with `has_focus` for that component: a test that moves the focus earlier loses it.
 - The tests of a file share one application, and the last tests of test_atspi.py read its output: keep them
   last.
+- A test that needs an application of its own, for example to see how it exits, starts it with
+  `start_application` and a subdirectory for its log.
 """
 
 import os
@@ -287,10 +289,17 @@ def journal():
         log.write(events.dump() + "\n")
 
 
-@pytest.fixture(scope="module")
-def app(journal):
-    """Starts AtspiTestApp with the wrapper and waits until its window is on the AT-SPI desktop."""
+def start_application(arguments=(), stdin=None, subdirectory=None):
+    """Starts AtspiTestApp with the wrapper as its assistive technology, and returns the process and the path
+    of `app-output.log`, which gets everything the JVM and the native layer print.
+
+    The working directory and the place of the log is the log directory of the run, or its `subdirectory` for
+    an application that a test starts next to the one of the fixture `app`.
+    """
     log_dir = _environment("ATSPI_LOG_DIR")
+    if subdirectory is not None:
+        log_dir = os.path.join(log_dir, subdirectory)
+        os.makedirs(log_dir)
     command = [
         _environment("ATSPI_JAVA"),
         "-cp", _environment("ATSPI_CLASSPATH"),
@@ -298,31 +307,38 @@ def app(journal):
         "-Xcheck:jni",
         "-Djavax.accessibility.assistive_technologies=" + WRAPPER_CLASS,
         "AtspiTestApp",
-    ]
+    ] + list(arguments)
     # The wrapper writes jaw_log.txt to the working directory when JAW_DEBUG is set.
     output_path = os.path.join(log_dir, "app-output.log")
     with open(output_path, "wb") as output:
         process = subprocess.Popen(
-            command, stdout=output, stderr=subprocess.STDOUT, cwd=log_dir, env=application_environment()
+            command, stdin=stdin, stdout=output, stderr=subprocess.STDOUT, cwd=log_dir, env=application_environment()
         )
-        try:
-            def frame_or_exit():
-                if process.poll() is not None:
-                    pytest.fail("the application exited with code %d, see app-output.log" % process.returncode)
-                return find_frame()
+    return process, output_path
 
-            application, frame = wait_for(
-                frame_or_exit,
-                "the window '%s' on the AT-SPI desktop; if the wrapper did not start, app-output.log says why"
-                % FRAME_NAME,
-                timeout=STARTUP_TIMEOUT_S,
-                journal=journal,
-            )
-            yield RunningApp(process, application, frame, output_path)
-        finally:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+
+@pytest.fixture(scope="module")
+def app(journal):
+    """Starts AtspiTestApp with the wrapper and waits until its window is on the AT-SPI desktop."""
+    process, output_path = start_application()
+    try:
+        def frame_or_exit():
+            if process.poll() is not None:
+                pytest.fail("the application exited with code %d, see app-output.log" % process.returncode)
+            return find_frame()
+
+        application, frame = wait_for(
+            frame_or_exit,
+            "the window '%s' on the AT-SPI desktop; if the wrapper did not start, app-output.log says why"
+            % FRAME_NAME,
+            timeout=STARTUP_TIMEOUT_S,
+            journal=journal,
+        )
+        yield RunningApp(process, application, frame, output_path)
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
