@@ -25,16 +25,19 @@ The text tests are here because a text offset crosses every layer: Swing counts 
 bus are the answer to a request and the event of the same change seen together, as a screen reader sees them.
 """
 
+import subprocess
+
 import gi
 
 gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi  # noqa: E402
+from gi.repository import Atspi, GLib  # noqa: E402
 
 import pytest  # noqa: E402
 
 from conftest import (  # noqa: E402
     FRAME_NAME, KEY_BACKSPACE, KEY_END, KEY_ESCAPE, KEY_F10, KEY_HOME, KEY_LEFT, KEY_X,
-    SANITIZER_MESSAGES, find_descendant, has_focus, press, wait_for, window_is_active,
+    SANITIZER_MESSAGES, STARTUP_TIMEOUT_S, find_descendant, has_focus, press, start_application, wait_for,
+    window_is_active,
 )
 
 # The button of AtspiTestApp. It is the first component of the window, so it has the focus when the window opens.
@@ -51,6 +54,13 @@ FOCUSED = "object:state-changed:focused"
 CARET_MOVED = "object:text-caret-moved"
 TEXT_INSERTED = "object:text-changed:insert"
 TEXT_DELETED = "object:text-changed:delete"
+CHILD_ADDED = "object:children-changed:add"
+
+# AtspiTestApp with this argument opens a dialog, closes it and exits, see EXIT_AFTER_DIALOG,
+# EXIT_TEST_DIALOG_TITLE and DIALOG_RELEASED_MESSAGE there.
+EXIT_AFTER_DIALOG = "exit-after-dialog"
+EXIT_TEST_DIALOG_NAME = "Exit test dialog"
+DIALOG_RELEASED_MESSAGE = "AtspiTestApp: the garbage collector released the dialog"
 
 
 def test_application_is_on_the_bus(app):
@@ -226,6 +236,76 @@ def test_erasing_emoji_removes_one_character(text_field, journal):
     assert Atspi.Text.get_character_count(text_field) == 2
     assert (deleted.detail1, deleted.detail2) == (1, 1), TEXT_DELETED
     assert Atspi.Text.get_caret_offset(text_field) == 1
+
+
+def test_exit_soon_after_a_dialog_is_clean(journal):
+    """Checks: an application exits with the code 0 when it closed a dialog a moment ago, a client got the
+    dialog in `object:children-changed:add`, and the garbage collector already released the dialog.
+
+    Why (ATK, wrapper): for that event the AT-SPI bridge keeps a reference of its own to the dialog for 15
+    seconds (`spi_leasing_take`). At the exit of the JVM the wrapper calls `atk_bridge_adaptor_cleanup`, which
+    destroys the object cache of the bridge and then releases that reference, here the last one. at-spi2-core
+    2.55.90 to 2.60.4 leaves a weak reference of the destroyed cache on the dialog, and the release ended the
+    JVM with a fatal error (IJPL-252515). The wrapper now keeps its ATK objects alive from the start of that
+    cleanup. Only this layer loads the bridge and has a client that listens, as Orca does. With another
+    at-spi2-core this test passes without the workaround as well.
+
+    May change when: every supported system has at-spi2-core 2.60.5 or later. The workaround is then not
+    necessary, and this test still passes.
+
+    The second application takes the focus from the one of the fixture `app`, so this test must stay behind the
+    tests that send keys.
+    """
+    added = []
+
+    def on_child_added(event, *_user_data):
+        try:
+            added.append(event.any_data.get_name())
+        except (AttributeError, GLib.Error):
+            # The event has no child, or the child is gone already: it is not the open dialog of this test.
+            pass
+
+    # Registered before the application starts, so that its bridge sends the event of its first windows too.
+    listener = Atspi.EventListener.new(on_child_added)
+    listener.register(CHILD_ADDED)
+    process, output_path = start_application(
+        arguments=[EXIT_AFTER_DIALOG], stdin=subprocess.PIPE, subdirectory=EXIT_AFTER_DIALOG
+    )
+    try:
+        def dialog_added_or_exit():
+            if process.poll() is not None:
+                pytest.fail(
+                    "setup: the application exited with code %d before the dialog opened, see %s"
+                    % (process.returncode, output_path)
+                )
+            return EXIT_TEST_DIALOG_NAME in added
+
+        wait_for(
+            dialog_added_or_exit,
+            "%s with the dialog '%s'; if the wrapper did not start, %s says why"
+            % (CHILD_ADDED, EXIT_TEST_DIALOG_NAME, output_path),
+            timeout=STARTUP_TIMEOUT_S,
+            journal=journal,
+        )
+        # The application now closes the dialog, waits for the garbage collector and exits.
+        process.stdin.close()
+        wait_for(lambda: process.poll() is not None, "the exit of the application", timeout=STARTUP_TIMEOUT_S)
+    finally:
+        listener.deregister(CHILD_ADDED)
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+
+    with open(output_path, errors="replace") as output:
+        dialog_released = DIALOG_RELEASED_MESSAGE in output.read()
+    assert dialog_released, (
+        "setup: the garbage collector did not release the dialog before the exit, so the bridge did not hold "
+        "the last reference to it, see %s" % output_path
+    )
+    assert process.returncode == 0, (
+        "the application ended with the code %d at its exit; %s and the hs_err file next to it have the fatal "
+        "error" % (process.returncode, output_path)
+    )
 
 
 # The test below looks at what the application did during the tests above, so it must stay the last one of this

@@ -26,6 +26,8 @@ public ATK API. Every call into Java is a real JNI upcall; nothing is mocked.
   `jaw_test_accessibility_enabled()`.
 
 Tests are in `jni/tests/test-jaw-object.c`; a new program goes into `check_PROGRAMS` of `jni/tests/Makefile.am`.
+`jni/tests/test-jaw-cleanup.c` is a program of its own for the state after `jaw_impl_keep_instances`, which no
+other test can share: add a test there only if it needs that state.
 
 ## What can be tested
 
@@ -81,5 +83,5 @@ make check JAW_TEST_JVM_OPTIONS=-Xlog:jni+resolve=debug
 For the sanitizers, build a separate copy of the sources with `./autogen.sh --enable-sanitizers` and run
 `make check` there. Never install or package that build.
 
-The results are in `jni/tests/test-jaw-object.log` and in `test-reports/TEST-native-*.xml`. A program that
+The results are in `jni/tests/<program>.log` and in `test-reports/TEST-native-*.xml`. A program that
 crashes gets a failed test case in its report.

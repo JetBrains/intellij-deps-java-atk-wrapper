@@ -26,7 +26,7 @@ JUNIT_REPORTS_ABS_DIR = \
 
 if NATIVE_TESTS
 
-check_PROGRAMS = test-jaw-object
+check_PROGRAMS = test-jaw-object test-jaw-cleanup
 TESTS = $(check_PROGRAMS)
 check_DATA = classes.stamp
 
@@ -58,6 +58,8 @@ SANITIZER_TESTS_ENVIRONMENT = \
 endif
 
 test_jaw_object_SOURCES = test-jaw-object.c jaw-test-jvm.c jaw-test-jvm.h
+# A program of its own: its test changes the lifetime of every later instance of the process.
+test_jaw_cleanup_SOURCES = test-jaw-cleanup.c jaw-test-jvm.c jaw-test-jvm.h
 
 # --merge: the TAP driver reads stderr together with the TAP stream. The log then has what a test case wrote
 # to stderr before the result of that test case, not at the start of the log.

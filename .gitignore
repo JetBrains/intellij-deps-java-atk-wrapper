@@ -45,6 +45,7 @@ jni/tests/.deps
 jni/tests/classes
 jni/tests/classes.stamp
 jni/tests/test-jaw-object
+jni/tests/test-jaw-cleanup
 jni/tests/*.log
 jni/tests/*.trs
 

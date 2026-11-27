@@ -37,6 +37,8 @@ before writing a test.
 - `press(keysym)`: sends a real key through the X server, with the `KEY_…` keysyms. Wait for the event of a key
   before the next key, or the events of two keys arrive together and a test takes the wrong one.
 - `FRAME_NAME`, `find_frame()`, `find_descendant(root, name)`, `application_environment()`.
+- `start_application(arguments, stdin, subdirectory)`: an application of its own for a test that cannot share
+  `app`, for example a test of how the application exits. Its log goes into the subdirectory of the log directory.
 
 Tests are in `test_atspi.py`. Its last test reads the output of the application for sanitizer messages and
 checks that the application still runs: keep it last.
